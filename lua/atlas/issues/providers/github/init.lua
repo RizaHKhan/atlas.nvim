@@ -115,21 +115,6 @@ local function views()
 end
 
 ---@param target AtlasTarget
----@return AtlasIssuesViewConfig
-local function view_for_target(target)
-	return {
-		name = "Search",
-		layout = "compact",
-		search = string.format(
-			"repo:%s/%s %s is:issue",
-			target.owner,
-			target.repo,
-			target.number and tostring(target.number) or ""
-		),
-	}
-end
-
----@param target AtlasTarget
 ---@return IssueRef|nil
 local function issue_ref(target)
 	if target.owner and target.repo and target.number then
@@ -139,7 +124,6 @@ end
 
 return {
 	views = views,
-	view_for_target = view_for_target,
 	issue_ref = issue_ref,
 	capabilities = {
 		actions = require("atlas.issues.providers.github.actions.registry"),

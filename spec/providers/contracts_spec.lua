@@ -42,7 +42,7 @@ describe("providers contracts", function()
 		assert_contract(
 			"pulls",
 			{ "bitbucket", "github", "gitlab" },
-			{ "resolve_search", "view_for_target", "views" },
+			{ "resolve_search", "repository_view", "views" },
 			{
 				"fetch_pullrequests",
 				"fetch_by_refs",
@@ -68,7 +68,7 @@ describe("providers contracts", function()
 		assert_contract(
 			"issues",
 			{ "github", "gitlab", "jira" },
-			{ "view_for_target", "issue_ref", "views" },
+			{ "issue_ref", "views" },
 			{ "fetch_issues", "fetch_by_refs", "fetch_issue" }
 		)
 	end)

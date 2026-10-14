@@ -90,20 +90,22 @@ local function fetch_pullrequests(view, opts, on_done)
 	return requests
 end
 
----@param target AtlasTarget
+---@param repository AtlasTarget
+---@param branch string|nil
 ---@return AtlasPullsViewConfig
-local function view_for_target(target)
+local function repository_view(repository, branch)
 	return {
 		name = "Search",
 		layout = "compact",
-		project = target.project_path,
+		project = repository.project_path,
 		scope = "all",
+		source_branch = branch,
 	}
 end
 
 return {
 	views = views,
-	view_for_target = view_for_target,
+	repository_view = repository_view,
 	resolve_search = gitlab_query.query,
 	capabilities = {
 		actions = require("atlas.pulls.providers.gitlab.actions.registry"),

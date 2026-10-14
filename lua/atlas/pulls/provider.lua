@@ -21,7 +21,7 @@
 ---@field icon string
 ---@field hl_group string
 ---@field views fun(): AtlasPullsViewConfig[]
----@field view_for_target fun(target: AtlasTarget): AtlasPullsViewConfig
+---@field repository_view fun(repository: AtlasTarget, branch: string|nil): AtlasPullsViewConfig
 ---@field resolve_search fun(view: AtlasPullsViewConfig): string, PullsStateFilter[]
 ---@field capabilities PullsProviderCapabilities
 

@@ -77,12 +77,16 @@ local function fetch_pullrequests(view, opts, on_done)
 	return requests
 end
 
----@param target AtlasTarget
+---@param repository AtlasTarget
+---@param branch string|nil
 ---@return AtlasPullsViewConfig
-local function view_for_target(target)
-	local search = string.format("repo:%s/%s is:pr", target.owner, target.repo)
-	if target.number then
-		search = search .. " " .. tostring(target.number)
+local function repository_view(repository, branch)
+	local search = string.format("repo:%s/%s is:pr", repository.owner, repository.repo)
+	if repository.number then
+		search = search .. " " .. tostring(repository.number)
+	end
+	if branch then
+		search = search .. " head:" .. branch
 	end
 	return {
 		name = "Search",
@@ -93,7 +97,7 @@ end
 
 return {
 	views = views,
-	view_for_target = view_for_target,
+	repository_view = repository_view,
 	resolve_search = search_query.query,
 	capabilities = {
 		actions = require("atlas.pulls.providers.github.actions.registry"),

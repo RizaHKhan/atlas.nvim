@@ -28,7 +28,6 @@
 ---@field icon string
 ---@field hl_group string
 ---@field views fun(): IssuesViewConfig[]
----@field view_for_target fun(target: AtlasTarget): IssuesViewConfig
 ---@field issue_ref fun(target: AtlasTarget): IssueRef|nil
 ---@field capabilities IssuesProviderCapabilities
 

@@ -214,7 +214,7 @@ function M.open(opts)
 		win = opts.win,
 		sidebar_buf = opts.sidebar_buf,
 		provider = provider,
-		view = provider and target and provider.view_for_target(target),
+		view = provider and target and provider.repository_view(target),
 		statusline = opts.statusline,
 		pulls = "loading",
 		filter = "open",

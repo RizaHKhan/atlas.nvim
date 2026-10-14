@@ -136,7 +136,12 @@ function M.open(value, page)
 		requests.run(function(done)
 			return git.local_repository(nil, done)
 		end, function(target)
-			open_repository(target, page, "No supported Git repository found")
+			if not target then
+				notify.warn("No supported Git repository found", { vim_notify = true })
+				search_repository()
+				return
+			end
+			open_repository(target, page)
 		end)
 	else
 		local target, err = providers.resolve(value)

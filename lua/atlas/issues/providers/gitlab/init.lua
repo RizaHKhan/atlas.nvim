@@ -69,18 +69,6 @@ local function fetch_issues(view, opts, on_done)
 end
 
 ---@param target AtlasTarget
----@return AtlasIssuesViewConfig
-local function view_for_target(target)
-	return {
-		name = "Search",
-		layout = "compact",
-		project = target.project_path,
-		scope = "all",
-		state = "all",
-	}
-end
-
----@param target AtlasTarget
 ---@return IssueRef|nil
 local function issue_ref(target)
 	if target.project_path and target.number then
@@ -90,7 +78,6 @@ end
 
 return {
 	views = views,
-	view_for_target = view_for_target,
 	issue_ref = issue_ref,
 	capabilities = {
 		actions = require("atlas.issues.providers.gitlab.actions.registry"),
