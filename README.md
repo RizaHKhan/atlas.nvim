@@ -284,7 +284,7 @@ Save searches as bookmarks, or press `*` to star a pull request or issue. Both a
 - Use Conventional Comments templates or define your own.
 - Save issue descriptions as templates and reuse them when creating issues.
 - Close or reopen GitHub/GitLab issues and change Jira workflow states.
-- Jump between linked issues and pull requests, or browse related issues and sub-issues.
+- Jump between linked issues and pull requests and back, or browse related issues and sub-issues.
 - Read GitHub and GitLab notifications, open the related item, and mark them as read or done.
 - Remap shortcuts or assign multiple keys to the same action.
 - Set local repository paths and PR templates per project.
@@ -810,7 +810,7 @@ issues = {
 
 These `User` events fire after the corresponding cleanup or setup has completed:
 
-- `AtlasUIClosed` for the main pulls/issues dashboard.
+- `AtlasUIClosed` for the pull request or issue dashboard.
 - `AtlasDiffOpened` and `AtlasDiffClosed` for diff sessions in AtlasDiff, CodeDiff, and Diffview.
 - `AtlasDiffFileChanged` when the current diff file changes in any of these viewers.
 

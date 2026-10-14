@@ -694,7 +694,7 @@ Uses the shared `providers.gitlab` authentication from |atlas-configuration|.
 These `User` events fire after setup or cleanup completes:
 
   AtlasUIClosed
-      The main pulls/issues dashboard closed.
+      The pull request or issue dashboard closed.
 
   AtlasDiffOpened, AtlasDiffClosed
       A diff session in AtlasDiff, CodeDiff, or Diffview opened or closed.

@@ -4,18 +4,19 @@ local config = require("atlas.config")
 local notify = require("atlas.core.notify")
 local status_spinner = require("atlas.ui.components.spinner")
 local state = require("atlas.issues.state")
-local dashboard_host = require("atlas.ui.dashboard")
-local navigation = require("atlas.ui.navigation")
+local navigation = require("atlas.issues.ui.dashboard.navigation")
+local window = require("atlas.issues.ui.dashboard.window")
 local info_popup = require("atlas.ui.popups.info")
 local requests = require("atlas.core.requests")
 local starred = require("atlas.core.starred")
+local detail = require("atlas.issues.ui.detail")
 
 local active_requests = requests.new()
 local issue_reload_requests = requests.new()
 
 local function render_if_active()
 	local provider = state.provider
-	if provider == nil or not dashboard_host.is_active("issues", provider.id) then
+	if provider == nil or not window.is_active() then
 		return
 	end
 
@@ -292,7 +293,6 @@ local function load_starred(on_done)
 	elseif #saved == 0 then
 		state.starred_items = {}
 		state.bookmarks.selection = nil
-		local detail = require("atlas.issues.ui.detail")
 		if detail.is_open() then
 			detail.close()
 		end
@@ -441,7 +441,6 @@ function M.refresh_view()
 			navigation.focus_first_item({ all_columns = true })
 		end
 		local item = navigation.current_item()
-		local detail = require("atlas.issues.ui.detail")
 		if detail.is_open() then
 			if not (selected_key and not focused) and item and item.kind == "issue" and item._issue then
 				detail.select(item._issue, { force_refresh = true })
@@ -559,7 +558,6 @@ local function refresh_issue(issue)
 
 	---@type IssueRef
 	local ref = issue
-	local detail = require("atlas.issues.ui.detail")
 	if detail.is_open() then
 		detail.refresh(issue)
 	end
