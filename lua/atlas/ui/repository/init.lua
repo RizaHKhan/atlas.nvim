@@ -1,7 +1,6 @@
 local resolver = require("atlas.core.keymaps")
 local notify = require("atlas.core.notify")
 local request_scope = require("atlas.core.requests")
-local detail = require("atlas.ui.detail")
 local loading = require("atlas.ui.loading")
 local pages = require("atlas.ui.repository.pages")
 local keymaps = require("atlas.ui.repository.keymaps")
@@ -76,7 +75,8 @@ local function close(session)
 	end
 	session.closed = true
 	vim.api.nvim_del_augroup_by_id(session.group)
-	detail.close(session.tab)
+	require("atlas.pulls.ui.detail.window").close(session.tab)
+	require("atlas.issues.ui.detail.window").close(session.tab)
 	if session.page then
 		session.page.close(session.content.buf)
 	end
@@ -108,7 +108,8 @@ local function select_page(session, index)
 		return
 	end
 	if session.page then
-		detail.close(session.tab)
+		require("atlas.pulls.ui.detail.window").close(session.tab)
+		require("atlas.issues.ui.detail.window").close(session.tab)
 		local previous_buf = session.content.buf
 		session.page.close(previous_buf)
 		session.content.buf =

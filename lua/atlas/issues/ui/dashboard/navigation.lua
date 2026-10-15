@@ -1,11 +1,11 @@
 local M = {}
 
-local ui_state = require("atlas.ui.state")
+local window = require("atlas.issues.ui.dashboard.window")
 
 local DEBOUNCE_MS = 150
 local select_timer = nil
 local autocmd_groups = {}
-local selection_ns = vim.api.nvim_create_namespace("atlas.ui.selection")
+local selection_ns = vim.api.nvim_create_namespace("atlas.issues.selection")
 
 local function stop_select_timer()
 	if select_timer then
@@ -19,7 +19,7 @@ local function is_selectable(node)
 	if type(node) ~= "table" then
 		return false
 	end
-	return node.kind == "pr" or node.kind == "issue" or node.kind == "bookmark" or node.kind == "starred"
+	return node.kind == "issue" or node.kind == "bookmark" or node.kind == "starred"
 end
 
 local function cells(node)
@@ -50,24 +50,23 @@ local function item_at(node, col)
 end
 
 function M.current_item()
-	local win = require("atlas.ui.dashboard").win()
+	local win = window.win()
 	if win == nil then
 		return nil
 	end
 	local cursor = vim.api.nvim_win_get_cursor(win)
-	local item = item_at(ui_state.line_map[cursor[1]], cursor[2])
+	local item = item_at(window.line_map[cursor[1]], cursor[2])
 	return item
 end
 
 function M.highlight_current_item()
-	local dashboard = require("atlas.ui.dashboard")
-	local buf, win = dashboard.buf(), dashboard.win()
+	local buf, win = window.buf(), window.win()
 	if not buf or not win then
 		return
 	end
 	vim.api.nvim_buf_clear_namespace(buf, selection_ns, 0, -1)
 	local cursor = vim.api.nvim_win_get_cursor(win)
-	local row = ui_state.line_map[cursor[1]]
+	local row = window.line_map[cursor[1]]
 	vim.api.nvim_set_option_value("cursorline", cells(row) == nil, { win = win })
 	local item = item_at(row, cursor[2])
 	if item and item.start_col and is_selectable(item) then
@@ -84,12 +83,8 @@ local function on_cursor_moved()
 	stop_select_timer()
 	select_timer = vim.defer_fn(function()
 		select_timer = nil
-		if not require("atlas.ui.dashboard").is_active() then
-			return
-		end
-		local item = M.current_item()
-		if ui_state.domain then
-			require("atlas." .. ui_state.domain .. ".ui.dashboard").select(item)
+		if window.is_active() then
+			require("atlas.issues.ui.dashboard").select(M.current_item())
 		end
 	end, DEBOUNCE_MS)
 end
@@ -106,7 +101,7 @@ end
 
 local function current_column(win)
 	local cursor = vim.api.nvim_win_get_cursor(win)
-	local row = ui_state.line_map[cursor[1]]
+	local row = window.line_map[cursor[1]]
 	local item = cells(row) and item_at(row, cursor[2])
 	return item and item.column
 end
@@ -131,7 +126,7 @@ function M.attach(buf)
 	end
 
 	M.detach(buf)
-	local group = vim.api.nvim_create_augroup("AtlasUINavigation" .. tostring(buf), { clear = true })
+	local group = vim.api.nvim_create_augroup("AtlasIssuesNavigation" .. tostring(buf), { clear = true })
 	autocmd_groups[buf] = group
 
 	vim.api.nvim_create_autocmd("CursorMoved", {
@@ -152,8 +147,7 @@ function M.attach(buf)
 end
 
 function M.move_cursor(direction)
-	local dashboard = require("atlas.ui.dashboard")
-	local win, buf = dashboard.win(), dashboard.buf()
+	local win, buf = window.win(), window.buf()
 	if win == nil or buf == nil then
 		return
 	end
@@ -163,7 +157,7 @@ function M.move_cursor(direction)
 	local col = current[2]
 	local max_line = vim.api.nvim_buf_line_count(buf)
 	local step = direction == "up" and -1 or 1
-	local line_map = ui_state.line_map
+	local line_map = window.line_map
 	local _, column = item_at(line_map[line], col)
 
 	for lnum = line + step, (direction == "up" and 1 or max_line), step do
@@ -189,12 +183,12 @@ function M.move_cursor(direction)
 end
 
 local function find_item(predicate)
-	local buf = require("atlas.ui.dashboard").buf()
+	local buf = window.buf()
 	if buf == nil then
 		return nil
 	end
 
-	local line_map = ui_state.line_map
+	local line_map = window.line_map
 	for lnum = 1, vim.api.nvim_buf_line_count(buf) do
 		for _, item in ipairs(cells(line_map[lnum]) or { line_map[lnum] }) do
 			if is_selectable(item) and predicate(item) then
@@ -207,7 +201,7 @@ end
 ---@param predicate fun(item: table): boolean
 ---@return boolean
 function M.focus_item(predicate)
-	local win = require("atlas.ui.dashboard").win()
+	local win = window.win()
 	if win == nil then
 		return false
 	end
@@ -221,7 +215,7 @@ end
 
 ---@param opts? { all_columns?: boolean }
 function M.focus_first_item(opts)
-	local win = require("atlas.ui.dashboard").win()
+	local win = window.win()
 	local column = not (opts and opts.all_columns) and win and current_column(win) or nil
 	M.focus_item(function(item)
 		return column == nil or item.column == column
@@ -229,13 +223,12 @@ function M.focus_first_item(opts)
 end
 
 function M.focus_last_item()
-	local dashboard = require("atlas.ui.dashboard")
-	local win, buf = dashboard.win(), dashboard.buf()
+	local win, buf = window.win(), window.buf()
 	if win == nil or buf == nil then
 		return
 	end
 
-	local line_map = ui_state.line_map
+	local line_map = window.line_map
 	local max_line = vim.api.nvim_buf_line_count(buf)
 	local column = current_column(win)
 	for lnum = max_line, 1, -1 do
@@ -252,12 +245,12 @@ end
 
 ---@param step integer
 function M.move_column(step)
-	local win = require("atlas.ui.dashboard").win()
+	local win = window.win()
 	if not win then
 		return
 	end
 	local cursor = vim.api.nvim_win_get_cursor(win)
-	local row = cells(ui_state.line_map[cursor[1]])
+	local row = cells(window.line_map[cursor[1]])
 	if not row then
 		return
 	end

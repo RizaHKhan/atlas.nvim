@@ -1,10 +1,9 @@
 local M = {}
 
-local statusline = require("atlas.ui.statusline")
 local utils = require("atlas.ui.shared.utils")
+local dashboard_window = require("atlas.pulls.ui.dashboard.window")
 
 local state = {
-	kind = nil,
 	win = nil,
 	buf = nil,
 	cleanup = nil,
@@ -33,25 +32,11 @@ local function configure(win)
 	}) do
 		vim.api.nvim_set_option_value(name, value, { win = win, scope = "local" })
 	end
-	statusline.attach(win)
-end
-
-local function reset_content()
-	if utils.buffer.valid(state.buf) then
-		vim.api.nvim_set_option_value("modifiable", true, { buf = state.buf })
-		vim.api.nvim_buf_clear_namespace(state.buf, -1, 0, -1)
-		vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, {})
-		vim.api.nvim_set_option_value("filetype", "atlas-ui.detail", { buf = state.buf })
-		vim.api.nvim_set_option_value("modifiable", false, { buf = state.buf })
-	end
-	if utils.window.valid(state.win) then
-		vim.api.nvim_set_option_value("winbar", "", { win = state.win, scope = "local" })
-	end
+	dashboard_window.statusline:attach(win)
 end
 
 local function deactivate()
 	local cleanup = state.cleanup
-	state.kind = nil
 	state.cleanup = nil
 	state.render = nil
 	if cleanup then
@@ -60,14 +45,16 @@ local function deactivate()
 end
 
 local function create()
-	local dashboard = require("atlas.ui.dashboard")
-	local beside_dashboard = dashboard.is_active()
-	local source = beside_dashboard and dashboard.win() or vim.api.nvim_get_current_win()
-	local buf = utils.buffer.create("atlas://detail", "atlas-ui.detail")
+	local from_dashboard = vim.api.nvim_get_current_win() == dashboard_window.win()
+	-- one panel per tab.. if the issue panel is open here, this one replaces it. Mostly because its currently a single state
+	require("atlas.issues.ui.detail.window").close(vim.api.nvim_get_current_tabpage())
+	local beside_dashboard = dashboard_window.is_active()
+	local source = beside_dashboard and dashboard_window.win() or vim.api.nvim_get_current_win()
+	local buf = utils.buffer.create("atlas://pulls/detail", "atlas-ui.detail")
 	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
 	local win = utils.window.create(source, "botright vsplit", buf, configure)
 	pcall(vim.api.nvim_win_set_width, win, math.max(math.floor(vim.o.columns * 0.45), 40))
-	if not beside_dashboard then
+	if not from_dashboard then
 		vim.api.nvim_set_current_win(win)
 	end
 
@@ -81,17 +68,17 @@ local function create()
 				deactivate()
 				state.win = nil
 				state.buf = nil
-				require("atlas.ui.dashboard").render()
+				dashboard_window.render()
 			end
 		end,
 	})
 end
 
----@param kind "issues"|"pulls"
 ---@param cleanup fun()
 ---@param render fun()
 ---@return integer win, integer buf
-function M.open(kind, cleanup, render)
+function M.open(cleanup, render)
+	-- there's only one PR panel.. if it's open in another tab, it moves over here. Mostly because its currently a single state
 	if M.is_open() and vim.api.nvim_win_get_tabpage(state.win) ~= vim.api.nvim_get_current_tabpage() then
 		M.close()
 	end
@@ -100,12 +87,8 @@ function M.open(kind, cleanup, render)
 		state.win = nil
 		state.buf = nil
 		create()
-	elseif state.kind ~= kind then
-		deactivate()
-		reset_content()
 	end
 
-	state.kind = kind
 	state.cleanup = cleanup
 	state.render = render
 	return state.win, state.buf
@@ -118,13 +101,6 @@ function M.is_open(tab)
 		and utils.buffer.valid(state.buf)
 		and state.render ~= nil
 		and (tab == nil or vim.api.nvim_win_get_tabpage(state.win) == tab)
-end
-
----@param kind "issues"|"pulls"
----@param tab integer|nil
----@return boolean
-function M.is_showing(kind, tab)
-	return M.is_open(tab) and state.kind == kind
 end
 
 ---@param direction "up"|"down"
@@ -173,11 +149,11 @@ function M.close(tab)
 		vim.api.nvim_win_close(win, true)
 	end
 	utils.buffer.delete(buf)
-	require("atlas.ui.dashboard").render()
+	dashboard_window.render()
 end
 
 vim.api.nvim_create_autocmd({ "VimResized", "WinResized" }, {
-	group = vim.api.nvim_create_augroup("AtlasDetailResize", { clear = true }),
+	group = vim.api.nvim_create_augroup("AtlasPullsDetailResize", { clear = true }),
 	callback = function(event)
 		if not M.is_open() then
 			return

@@ -35,13 +35,15 @@ local reviews_api = require("atlas.pulls.providers.bitbucket.api.reviews")
 local search_query = require("atlas.providers.bitbucket.query")
 local tasks_api = require("atlas.pulls.providers.bitbucket.api.tasks")
 
----@param target AtlasTarget
+---@param repository AtlasTarget
+---@param branch string|nil
 ---@return AtlasBitbucketViewConfig
-local function view_for_target(target)
+local function repository_view(repository, branch)
+	local filter = branch and string.format('source.branch.name = "%s"', branch)
 	return {
 		name = "Search",
 		layout = "compact",
-		search = search_query.for_repo(target.workspace, target.repo),
+		search = search_query.for_repo(repository.workspace, repository.repo, filter),
 	}
 end
 
@@ -107,7 +109,7 @@ end
 
 return {
 	views = views,
-	view_for_target = view_for_target,
+	repository_view = repository_view,
 	resolve_search = search_query.query,
 	capabilities = {
 		actions = require("atlas.pulls.providers.bitbucket.actions.registry"),
@@ -132,12 +134,11 @@ return {
 			-- fetch_assignees = nil,
 		},
 		comments = {
-			-- reaction_options = nil,
 			fetch_conversation = activity_api.fetch_conversation,
 			add_comment = comments_api.add_comment,
 			edit_comment = comments_api.edit_comment,
 			delete_comment = comments_api.delete_comment,
-			-- add_reaction = nil,
+			-- reactions = nil,
 			set_thread_resolved = comments_api.set_thread_resolved,
 		},
 		reviews = {

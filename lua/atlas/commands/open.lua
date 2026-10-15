@@ -3,6 +3,7 @@ local M = {}
 local config = require("atlas.config")
 local git = require("atlas.core.git")
 local notify = require("atlas.core.notify")
+local picker = require("atlas.ui.picker")
 local providers = require("atlas.providers")
 local request_scope = require("atlas.core.requests")
 
@@ -28,9 +29,7 @@ local function open_target(target, provider, entity)
 		return
 	end
 
-	if target.entity == "repo" then
-		require("atlas").open(target.domain, target.provider, { initial_view = provider.view_for_target(target) })
-	elseif target.entity == "pr" then
+	if target.entity == "pr" then
 		---@cast entity PullRequest|nil
 		---@cast provider PullsProvider|nil
 		require("atlas.pulls.ui.detail").open(
@@ -118,26 +117,94 @@ local function fetch_reference(value, repository, on_done)
 	try(1)
 end
 
----@param value string
+local function prompt()
+	vim.ui.input({ prompt = "URL, issue key, or number: " }, function(input)
+		if input and vim.trim(input) ~= "" then
+			M.open(vim.trim(input))
+		end
+	end)
+end
+
+local function open_current_branch()
+	local cwd = git.default_cwd()
+	requests.all({
+		repository = function(done)
+			return git.local_repository(cwd, done)
+		end,
+		branch = function(done)
+			return git.current_branch(cwd, done)
+		end,
+	}, function(values, errors)
+		local repository, branch = values.repository, values.branch
+		local provider = repository
+			and config.provider_options(repository.provider)
+			and providers.load(repository.provider, "pulls")
+		if not repository or not branch or not provider then
+			local reason = not repository and "No supported Git repository found"
+				or not branch and errors.branch
+				or "Pull requests are not available for " .. providers[repository.provider].name
+			notify.warn(reason, { vim_notify = true })
+			prompt()
+			return
+		end
+		---@cast provider PullsProvider
+
+		requests.run(function(done)
+			local view = provider.repository_view(repository, branch)
+			return provider.capabilities.core.fetch_pullrequests(view, { force_refresh = true, pagelen = 50 }, done)
+		end, function(page, fetch_errors)
+			if fetch_errors and #fetch_errors > 0 then
+				notify.error(table.concat(fetch_errors, "; "), { vim_notify = true })
+				return
+			end
+			local pulls = vim.tbl_filter(function(pr)
+				return pr.state == "open" or pr.state == "draft"
+			end, page.items)
+			local function open_pr(pr)
+				if pr then
+					require("atlas.pulls.ui.detail").open(pr, { provider = provider })
+				end
+			end
+
+			if #pulls == 0 then
+				notify.info("No open pull request for branch " .. branch, { vim_notify = true })
+			elseif #pulls == 1 then
+				open_pr(pulls[1])
+			else
+				picker.select({
+					title = "Open pull request",
+					items = pulls,
+					format_item = function(pr)
+						return string.format("#%s %s", tostring(pr.id), pr.title)
+					end,
+					on_select = open_pr,
+				})
+			end
+		end)
+	end)
+end
+
+---@param value string|nil A URL, Jira key, pull request or issue number, "." for the current branch's pull request, or nil to ask.
 function M.open(value)
 	requests.cancel()
 	requests = request_scope.new()
+	if not value then
+		prompt()
+		return
+	end
 	value = vim.trim(value)
 
-	if value == "." or value:match("^[#!]?%d+$") then
+	if value == "." then
+		open_current_branch()
+		return
+	end
+
+	if value:match("^[#!]?%d+$") then
 		requests.run(function(done)
 			return git.local_repository(nil, done)
 		end, function(repository)
 			if not repository then
-				notify.error(
-					value == "." and "No supported Git repository found"
-						or "A numeric reference requires a supported local Git repository",
-					{ vim_notify = true }
-				)
-				return
-			end
-			if value == "." then
-				open_target(repository)
+				notify.error("A numeric reference requires a supported local Git repository", { vim_notify = true })
 				return
 			end
 			fetch_reference(value, repository, function(target, provider, entity, resolve_err)

@@ -1,6 +1,7 @@
 local M = {}
 
 local actions = require("atlas.issues.actions")
+local git = require("atlas.core.git")
 local notify = require("atlas.core.notify")
 local picker = require("atlas.ui.picker")
 local providers = require("atlas.providers")
@@ -26,7 +27,7 @@ local function create(provider)
 	actions.run("create_issue", { provider = provider })
 end
 
-function M.open()
+local function pick()
 	local choices = build_choices()
 
 	if #choices == 0 then
@@ -51,6 +52,40 @@ function M.open()
 			end
 		end,
 	})
+end
+
+---@param provider_id string
+local function create_with(provider_id)
+	for _, choice in ipairs(build_choices()) do
+		if choice.provider.id == provider_id then
+			create(choice.provider)
+			return
+		end
+	end
+	local name = vim.tbl_get(providers, provider_id, "name") or provider_id
+	notify.warn("Creating issues is not available for " .. name, { vim_notify = true })
+	pick()
+end
+
+---@param target string|nil A provider ID, "." for the current repository's provider, or nil to ask.
+function M.issue(target)
+	if not target then
+		pick()
+		return
+	end
+	if target ~= "." then
+		create_with(target:lower())
+		return
+	end
+
+	git.local_repository(nil, function(repository)
+		if not repository then
+			notify.warn("No supported Git repository found", { vim_notify = true })
+			pick()
+			return
+		end
+		create_with(repository.provider)
+	end)
 end
 
 return M

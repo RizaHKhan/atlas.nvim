@@ -2,22 +2,21 @@ local M = {}
 
 local config = require("atlas.config")
 local events = require("atlas.core.events")
+local resolver = require("atlas.core.keymaps")
 local statusline = require("atlas.ui.statusline")
 local utils = require("atlas.ui.shared.utils")
 
----@class AtlasDashboardState
----@field win integer|nil
----@field buf integer|nil
----@field tab integer|nil
----@field previous_win integer|nil
----@field session_id string|nil
----@field group integer|nil
----@field domain AtlasDomain|nil
----@field provider AtlasProviderId|nil
----@field listed boolean
----@field options table<string, boolean|string>|nil
----@field closing boolean
----@type AtlasDashboardState
+M.statusline = statusline.new({
+	help_key = function()
+		local keys = resolver.resolve("ui.help")
+		return keys and keys[1]
+	end,
+	show_version = true,
+})
+
+---@type table<integer, table>
+M.line_map = {}
+
 local state = {
 	win = nil,
 	buf = nil,
@@ -25,14 +24,10 @@ local state = {
 	previous_win = nil,
 	session_id = nil,
 	group = nil,
-	domain = nil,
-	provider = nil,
 	listed = false,
 	options = nil,
 	closing = false,
 }
-
-local resize_group = vim.api.nvim_create_augroup("AtlasDashboardResize", { clear = true })
 
 ---@return integer|nil
 local function window()
@@ -127,23 +122,7 @@ local function configure_window()
 	}) do
 		set_option(win, name, value)
 	end
-	statusline.attach(win)
-end
-
-local function dispose_domain()
-	local domain = state.domain
-	state.domain = nil
-	state.provider = nil
-	if domain then
-		local module = require("atlas." .. domain)
-		pcall(module.dispose)
-	end
-end
-
-local function reset_ui_state()
-	local ui_state = require("atlas.ui.state")
-	ui_state.domain = nil
-	ui_state.line_map = {}
+	M.statusline:attach(win)
 end
 
 ---@param session_id string
@@ -155,24 +134,25 @@ local function close_session(session_id, reason, close_tab)
 	end
 	state.closing = true
 
+	local provider = require("atlas.issues.state").provider
 	local event = {
 		version = 1,
 		session_id = session_id,
 		tabpage = state.tab,
-		domain = state.domain,
-		provider = state.provider,
+		domain = "issues",
+		provider = provider and provider.id,
 		reason = reason,
 	}
 	local tab = state.tab
 	local group = state.group
 	local previous_win = state.previous_win
 
-	require("atlas.ui.detail").close(state.tab)
-	dispose_domain()
-	reset_ui_state()
+	require("atlas.issues.ui.detail.window").close(state.tab)
+	require("atlas.issues.ui.dashboard.controller").dispose()
+	M.line_map = {}
 	statusline.detach(state.win)
 	if state.buf then
-		require("atlas.ui.keymaps").remove(state.buf)
+		require("atlas.issues.ui.dashboard.keymaps").remove(state.buf)
 	end
 	if close_tab and utils.window.valid(state.win) then
 		vim.api.nvim_win_close(state.win, true)
@@ -194,7 +174,7 @@ local function close_session(session_id, reason, close_tab)
 	state.listed = false
 	state.options = nil
 	state.closing = false
-	statusline.reset()
+	M.statusline:reset()
 	if close_tab and utils.window.valid(previous_win) then
 		vim.api.nvim_set_current_win(previous_win)
 	end
@@ -209,7 +189,7 @@ local function setup_listed_buffer(session_id)
 		buffer = state.buf,
 		callback = function()
 			if state.session_id == session_id and not state.closing and vim.api.nvim_get_current_win() == state.win then
-				require("atlas.ui.detail").close(state.tab)
+				require("atlas.issues.ui.detail.window").close(state.tab)
 				restore_options()
 			end
 		end,
@@ -239,7 +219,7 @@ end
 
 local function create()
 	state.previous_win = vim.api.nvim_get_current_win()
-	state.buf = utils.buffer.create("Atlas", "atlas-ui.dashboard")
+	state.buf = utils.buffer.create("Atlas Issues", "atlas-ui.dashboard")
 	state.listed = config.options.ui.listed_buffer == true
 	vim.api.nvim_set_option_value("buflisted", state.listed, { buf = state.buf })
 	vim.cmd("tabnew")
@@ -252,7 +232,7 @@ local function create()
 	end
 
 	state.session_id = events.new_id("ui")
-	state.group = vim.api.nvim_create_augroup("AtlasDashboard" .. state.session_id, { clear = true })
+	state.group = vim.api.nvim_create_augroup("AtlasIssuesDashboard" .. state.session_id, { clear = true })
 	state.closing = false
 	if state.listed then
 		setup_listed_buffer(state.session_id)
@@ -285,22 +265,17 @@ local function create()
 	})
 end
 
----@param domain AtlasDomain
----@param provider AtlasProviderId
-function M.open(domain, provider)
+function M.open()
 	if window() == nil or M.buf() == nil then
 		if state.session_id then
 			close_session(state.session_id, "replaced", true)
 		end
 		create()
-	elseif state.domain then
-		require("atlas.ui.detail").close(state.tab)
-		dispose_domain()
+	else
+		require("atlas.issues.ui.detail.window").close(state.tab)
+		require("atlas.issues.ui.dashboard.controller").dispose()
 	end
 
-	state.domain = domain
-	state.provider = provider
-	require("atlas.ui.state").domain = domain
 	if state.tab and vim.api.nvim_tabpage_is_valid(state.tab) then
 		vim.api.nvim_set_current_tabpage(state.tab)
 	end
@@ -309,22 +284,17 @@ function M.open(domain, provider)
 		vim.api.nvim_win_set_buf(state.win, state.buf)
 	end
 	configure_window()
-	require("atlas.ui.keymaps").register(state.buf)
 end
 
 function M.render()
-	if M.is_active() and state.domain then
-		require("atlas." .. state.domain).render()
+	if M.is_active() then
+		require("atlas.issues.ui.dashboard").render()
 	end
 end
 
----@param domain AtlasDomain|nil
----@param provider AtlasProviderId|nil
-function M.is_active(domain, provider)
-	return M.win() ~= nil
-		and vim.api.nvim_get_current_tabpage() == state.tab
-		and (domain == nil or state.domain == domain)
-		and (provider == nil or state.provider == provider)
+---@return boolean
+function M.is_active()
+	return M.win() ~= nil and vim.api.nvim_get_current_tabpage() == state.tab
 end
 
 ---@param reason string|nil
@@ -335,7 +305,7 @@ function M.close(reason)
 end
 
 vim.api.nvim_create_autocmd({ "VimResized", "WinResized", "TabEnter" }, {
-	group = resize_group,
+	group = vim.api.nvim_create_augroup("AtlasIssuesDashboardResize", { clear = true }),
 	callback = M.render,
 })
 

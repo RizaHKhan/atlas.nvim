@@ -13,6 +13,25 @@ local ns = vim.api.nvim_create_namespace("atlas.provider_detail")
 
 local PADDING_X = 1
 
+---@return IssuesDetailChip[]
+local function link_chips()
+	local counts = { issue = 0, pr = 0, external = 0 }
+	for _, link in ipairs(links.items(state.links and state.links.items or {}, state.current_pr)) do
+		counts[link.kind] = (counts[link.kind] or 0) + 1
+	end
+	local result = {}
+	for _, entry in ipairs({ { "issue", "issue" }, { "pr", "PR" }, { "external", "link" } }) do
+		local count = counts[entry[1]]
+		if count > 0 then
+			table.insert(result, {
+				label = icons.get("link") .. " " .. count .. " " .. entry[2] .. (count == 1 and "" or "s"),
+				hl = "AtlasRelatedChip",
+			})
+		end
+	end
+	return result
+end
+
 ---@param buf integer
 ---@param lines string[]
 ---@param spans table[]
@@ -101,7 +120,7 @@ function M.render(tab_items)
 				and provider_detail.chips
 				and provider_detail.chips(pr, details, state.details_loading)
 			or {}
-		vim.list_extend(extra_chips, links.chips(state))
+		vim.list_extend(extra_chips, link_chips())
 
 		-- Header
 		local h_lines, h_spans = header.render(pr, width, extra_fields)

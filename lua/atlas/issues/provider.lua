@@ -28,7 +28,6 @@
 ---@field icon string
 ---@field hl_group string
 ---@field views fun(): IssuesViewConfig[]
----@field view_for_target fun(target: AtlasTarget): IssuesViewConfig
 ---@field issue_ref fun(target: AtlasTarget): IssueRef|nil
 ---@field capabilities IssuesProviderCapabilities
 
@@ -49,8 +48,7 @@
 ---@field add_comment (fun(issue: Issue, content: string, opts: { parent?: IssueComment }|nil, on_done: fun(comment: IssueComment|nil, err: string|nil)): { cancel: fun() }|nil)|nil
 ---@field edit_comment (fun(issue: Issue, comment: IssueComment, content: string, on_done: fun(comment: IssueComment|nil, err: string|nil)): { cancel: fun() }|nil)|nil
 ---@field delete_comment (fun(issue: Issue, comment: IssueComment, on_done: fun(ok: boolean, err: string|nil)): { cancel: fun() }|nil)|nil
----@field add_reaction (fun(issue: Issue, item: IssueConversationItem, key: string, on_done: fun(ok: boolean, err: string|nil)): { cancel: fun() }|nil)|nil
----@field reaction_options IssueReactionOption[]|nil
+---@field reactions AtlasReactionsCapability|nil
 
 ---@class IssuesActionResult
 ---@field issue_key string|nil

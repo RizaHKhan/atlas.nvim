@@ -1,7 +1,7 @@
-describe("ui.navigation board movement", function()
+describe("issues navigation board movement", function()
 	local navigation, state, cursor, leftcol
 	local original_api, original_defer, original_fn, saved
-	local modules = { "atlas.ui.navigation", "atlas.ui.dashboard", "atlas.ui.state" }
+	local modules = { "atlas.issues.ui.dashboard.navigation", "atlas.issues.ui.dashboard.window" }
 
 	before_each(function()
 		saved = {}
@@ -10,9 +10,8 @@ describe("ui.navigation board movement", function()
 		end
 		original_api, original_defer, original_fn = vim.api, vim.defer_fn, vim.fn
 		cursor, leftcol = { 1, 0 }, 20
-		state = { line_map = {} }
-		package.loaded["atlas.ui.state"] = state
-		package.loaded["atlas.ui.dashboard"] = {
+		state = {
+			line_map = {},
 			win = function()
 				return 1
 			end,
@@ -20,6 +19,7 @@ describe("ui.navigation board movement", function()
 				return 2
 			end,
 		}
+		package.loaded["atlas.issues.ui.dashboard.window"] = state
 		vim.api = vim.tbl_extend("force", original_api, {
 			nvim_win_get_cursor = function()
 				return cursor
@@ -42,8 +42,8 @@ describe("ui.navigation board movement", function()
 		vim.defer_fn = function()
 			return { stop = function() end, close = function() end }
 		end
-		package.loaded["atlas.ui.navigation"] = nil
-		navigation = require("atlas.ui.navigation")
+		package.loaded["atlas.issues.ui.dashboard.navigation"] = nil
+		navigation = require("atlas.issues.ui.dashboard.navigation")
 	end)
 
 	after_each(function()
@@ -54,7 +54,8 @@ describe("ui.navigation board movement", function()
 	end)
 
 	it("continues vertical movement through wrapped groups while keeping workflow column jumps", function()
-		local lines, map = require("atlas.issues.ui.layouts.board").jira({ width = 80 }, {
+		local board = require("atlas.issues.ui.layouts.board")
+		local lines, map = board.render({ width = 80 }, {
 			{ key = "A", title = "Café", status = "Open" },
 			{ key = "B", title = "Work", status = "Done" },
 			{ key = "C", title = "Work", status = "Open" },
@@ -62,7 +63,7 @@ describe("ui.navigation board movement", function()
 			{ key = "F", title = "Test", status = "Testing" },
 			{ key = "H", title = "Review", status = "Review" },
 			{ key = "I", title = "Ship", status = "Closed" },
-		})
+		}, board.jira)
 		state.line_map = map
 		local function position(key)
 			for line = 1, #lines do

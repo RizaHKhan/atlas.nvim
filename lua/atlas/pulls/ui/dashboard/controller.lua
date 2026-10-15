@@ -4,11 +4,12 @@ local notify = require("atlas.core.notify")
 local spinner = require("atlas.ui.components.spinner")
 local state = require("atlas.pulls.state")
 local layouts = require("atlas.pulls.ui.layouts")
-local dashboard_host = require("atlas.ui.dashboard")
-local navigation = require("atlas.ui.navigation")
+local navigation = require("atlas.pulls.ui.dashboard.navigation")
+local window = require("atlas.pulls.ui.dashboard.window")
 local info_popup = require("atlas.ui.popups.info")
 local requests = require("atlas.core.requests")
 local starred = require("atlas.core.starred")
+local detail = require("atlas.pulls.ui.detail")
 
 local active_requests = requests.new()
 local pr_reload_requests = requests.new()
@@ -29,7 +30,7 @@ end
 
 local function render_if_active()
 	local provider = state.provider
-	if provider == nil or not dashboard_host.is_active("pulls", provider.id) then
+	if provider == nil or not window.is_active() then
 		return
 	end
 	require("atlas.pulls.ui.dashboard").render()
@@ -404,7 +405,6 @@ function M.refresh_view()
 			navigation.focus_first_item()
 		end
 
-		local detail = require("atlas.pulls.ui.detail")
 		local item = navigation.current_item()
 		if
 			(selected_pr ~= nil and not focused)
@@ -442,7 +442,6 @@ function M.refresh_pr(pr)
 
 	notify.loading(string.format("Reloading PR #%s...", tostring(pr_id)))
 	begin_pr_reload(repo_id, pr_id)
-	local detail = require("atlas.pulls.ui.detail")
 	if detail.is_open() then
 		detail.refresh(pr)
 	end
