@@ -19,7 +19,7 @@ local function gh_flags(args)
 end
 
 local function pull_request()
-	return { id = "7", repo_full_name = "octo/repo" }
+	return { id = "7", repo_full_name = "owner/repo", author = { name = "alice", username = "alice" } }
 end
 
 local function pending_comment(overrides)

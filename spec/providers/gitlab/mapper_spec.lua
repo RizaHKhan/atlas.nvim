@@ -251,3 +251,30 @@ describe("GitLab GraphQL notes", function()
 		)
 	end)
 end)
+
+describe("GitLab comment author roles", function()
+	local function roles(note)
+		note.id = "gid://gitlab/Note/1"
+		return issue_mapper.to_comment(note, {}, nil, "alice").author_roles
+	end
+
+	it("maps the access level, contributors, bots and the issue author", function()
+		assert.same(
+			{ "Author", "Maintainer" },
+			roles({ author = { username = "alice" }, maxAccessLevelOfAuthor = "Maintainer" })
+		)
+		assert.same({ "Contributor" }, roles({ author = { username = "bob" }, authorIsContributor = true }))
+		assert.same(
+			{ "Bot", "Developer" },
+			roles({ author = { username = "ci", bot = true }, maxAccessLevelOfAuthor = "Developer" })
+		)
+		assert.is_nil(roles({ author = { username = "bob" }, maxAccessLevelOfAuthor = vim.NIL }))
+	end)
+
+	it("marks the merge request author on REST discussion notes", function()
+		local note = { id = 1, author = { username = "alice" } }
+		local comment =
+			mapper.to_discussion_note(note, { id = "d1", notes = { note } }, "https://gitlab.com/mr", "alice")
+		assert.same({ "Author" }, comment.author_roles)
+	end)
+end)

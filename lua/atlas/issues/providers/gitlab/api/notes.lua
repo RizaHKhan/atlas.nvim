@@ -24,7 +24,9 @@ local GQL_DISCUSSIONS = [[
 								body
 								system
 								createdAt
-								author { username name }
+								maxAccessLevelOfAuthor
+								authorIsContributor
+								author { username name bot }
 								awardEmoji { nodes { name user { name username } } }
 							}
 						}
@@ -42,7 +44,7 @@ local CREATE_NOTE_MUTATION = [[
 mutation($noteableId:NoteableID!,$body:String!,$discussionId:DiscussionID){
   createNote(input:{noteableId:$noteableId,body:$body,discussionId:$discussionId}){
     errors
-    note{id body createdAt author{username name} discussion{id notes(first:1){nodes{id}}}}
+    note{id body createdAt maxAccessLevelOfAuthor authorIsContributor author{username name bot} discussion{id notes(first:1){nodes{id}}}}
   }
 }
 ]]
@@ -51,7 +53,7 @@ local UPDATE_NOTE_MUTATION = [[
 mutation($id:NoteID!,$body:String!){
   updateNote(input:{id:$id,body:$body}){
     errors
-    note{id body createdAt author{username name} discussion{id notes(first:1){nodes{id}}}}
+    note{id body createdAt maxAccessLevelOfAuthor authorIsContributor author{username name bot} discussion{id notes(first:1){nodes{id}}}}
   }
 }
 ]]
@@ -100,7 +102,12 @@ local function fetch_discussions(issue, opts, on_done)
 		local work_items = json.safe_table(json.safe_table(project).workItems).nodes
 		local viewer = json.safe_str(json.safe_table(json.safe_table(data).currentUser).username)
 		local result = {
-			description = normalizer.to_description(raw_issue, json.safe_table(work_items)[1], viewer),
+			description = normalizer.to_description(
+				raw_issue,
+				json.safe_table(work_items)[1],
+				viewer,
+				issue.reporter and issue.reporter.username
+			),
 			discussions = json.safe_table(json.safe_table(discussions).nodes),
 			viewer = viewer,
 		}
@@ -115,8 +122,9 @@ end
 
 ---@param discussions table[]
 ---@param viewer string|nil
+---@param author_username string|nil
 ---@return IssueConversationItem[]
-local function map_discussions(discussions, viewer)
+local function map_discussions(discussions, viewer, author_username)
 	local items = {}
 	local events = {}
 	for _, discussion_value in ipairs(discussions) do
@@ -133,7 +141,7 @@ local function map_discussions(discussions, viewer)
 					})
 				end
 			else
-				local comment = normalizer.to_comment(raw, discussion, viewer)
+				local comment = normalizer.to_comment(raw, discussion, viewer, author_username)
 				if comment then
 					table.insert(items, {
 						id = "comment:" .. tostring(comment.id),
@@ -158,7 +166,7 @@ function M.fetch_conversation(issue, opts, on_done)
 			on_done(nil, err)
 			return
 		end
-		local items = map_discussions(result.discussions, result.viewer)
+		local items = map_discussions(result.discussions, result.viewer, issue.reporter and issue.reporter.username)
 		local description = result.description
 		if description then
 			table.insert(items, 1, {
@@ -207,7 +215,8 @@ function M.add_comment(issue, body, opts, on_done)
 	local variables = { noteableId = issue.node_id, body = body, discussionId = parent and parent.thread_id }
 	local ctx = { action = parent and "Reply in discussion" or "Add discussion" }
 	return mutate(issue, CREATE_NOTE_MUTATION, variables, "createNote", ctx, function(note, err)
-		local comment = note and normalizer.to_comment(note, note.discussion)
+		local comment = note
+			and normalizer.to_comment(note, note.discussion, nil, issue.reporter and issue.reporter.username)
 		if not comment then
 			on_done(nil, err or "GitLab did not return the created comment")
 			return
@@ -229,7 +238,8 @@ function M.edit_comment(issue, comment, body, on_done)
 	local variables = { id = comment.id, body = body }
 	local ctx = { action = "Edit note", note_id = comment.id }
 	return mutate(issue, UPDATE_NOTE_MUTATION, variables, "updateNote", ctx, function(note, err)
-		local updated = note and normalizer.to_comment(note, note.discussion)
+		local updated = note
+			and normalizer.to_comment(note, note.discussion, nil, issue.reporter and issue.reporter.username)
 		if not updated then
 			on_done(nil, err or "GitLab did not return the updated comment")
 			return

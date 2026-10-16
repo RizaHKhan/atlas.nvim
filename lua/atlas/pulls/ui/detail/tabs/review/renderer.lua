@@ -41,14 +41,9 @@ end
 ---@param task PullsComment
 ---@param width integer
 local function emit_task(lines, spans, line_map, task, width)
-	local task_lines, task_spans, task_map = comment_threads.render_task_compact(
-		{ comment = task, children = {} },
-		width,
-		{
-			padding_x = PADDING_X,
-			show_task_label = false,
-		}
-	)
+	local task_lines, task_spans, task_map = comment_threads.render({ { comment = task, children = {} } }, width, {
+		padding_x = PADDING_X,
+	})
 	local offset = #lines
 	utils.append_block(lines, spans, { lines = task_lines, highlights = task_spans })
 	for line, entry in pairs(task_map) do

@@ -216,7 +216,6 @@ function M.render_cards(items, width, opts)
 	end
 	return threads.render(rendered_items, width, {
 		padding_x = opts.padding_x or 0,
-		separator = "─",
 	})
 end
 

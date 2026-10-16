@@ -14,6 +14,35 @@ M.reactions = {
 	{ name = "eyes", key = "EYES" },
 }
 
+local associations = {
+	OWNER = "Owner",
+	MEMBER = "Member",
+	COLLABORATOR = "Collaborator",
+	CONTRIBUTOR = "Contributor",
+	FIRST_TIME_CONTRIBUTOR = "First-time contributor",
+	FIRST_TIMER = "First-time contributor",
+}
+
+---@param node any
+---@param author_login string|nil
+---@return string[]|nil
+function M.author_roles(node, author_login)
+	node = json.safe_table(node)
+	local author = json.safe_table(node.author)
+	local roles = {}
+	if author.login ~= nil and author.login == author_login then
+		table.insert(roles, "Author")
+	end
+	if author.__typename == "Bot" then
+		table.insert(roles, "Bot")
+	end
+	local association = associations[node.authorAssociation]
+	if association then
+		table.insert(roles, association)
+	end
+	return #roles > 0 and roles or nil
+end
+
 ---@param raw any
 ---@return { id: string, login: string, name: string }|nil
 function M.identity(raw)

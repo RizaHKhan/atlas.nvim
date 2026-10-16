@@ -8,14 +8,14 @@ local TIMELINE_QUERY = [[
 query($owner:String!,$name:String!,$number:Int!,$endCursor:String){
   repository(owner:$owner,name:$name){
     pullRequest(number:$number){
-      id url body createdAt author{...actor}
+      id url body createdAt authorAssociation author{...actor}
       reactionGroups{content viewerHasReacted reactors(first:10){totalCount nodes{...on User{login name} ...on Bot{login}}}}
       timelineItems(first:100,after:$endCursor){
         pageInfo{hasNextPage endCursor}
         nodes{
           __typename
           ...on IssueComment{
-            id url body createdAt author{...actor}
+            id url body createdAt authorAssociation author{...actor}
             reactionGroups{content viewerHasReacted reactors(first:10){totalCount nodes{...on User{login name} ...on Bot{login}}}}
           }
           ...on PullRequestReview{id state body submittedAt url commit{oid} author{...actor}}
@@ -40,7 +40,7 @@ query($owner:String!,$name:String!,$number:Int!,$endCursor:String){
     }
   }
 }
-fragment actor on Actor{login ...on User{databaseId} ...on Bot{databaseId}}
+fragment actor on Actor{__typename login ...on User{databaseId} ...on Bot{databaseId}}
 ]]
 
 ---@param entries PullsActivityEntry[]
@@ -141,7 +141,7 @@ function M.fetch_conversation(pr, _opts, on_done)
 		end
 
 		local items, events = {}, {}
-		local description = pulls[1] and mapper.to_description(pulls[1])
+		local description = pulls[1] and mapper.to_description(pulls[1], pr.author.username)
 		if description then
 			table.insert(items, {
 				id = "description",
@@ -152,7 +152,7 @@ function M.fetch_conversation(pr, _opts, on_done)
 		end
 		for _, node in ipairs(nodes) do
 			if node.__typename == "IssueComment" then
-				local comment = mapper.to_comment(node)
+				local comment = mapper.to_comment(node, pr.author.username)
 				table.insert(items, {
 					id = "comment:" .. tostring(comment.id),
 					kind = "comment",

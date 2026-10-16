@@ -361,11 +361,13 @@ function M.to_activity(node)
 end
 
 ---@param node table GraphQL `IssueComment`
+---@param author_login string|nil
 ---@return PullsComment
-function M.to_comment(node)
+function M.to_comment(node, author_login)
 	return {
 		id = node.id,
 		author = comment_author(node.author),
+		author_roles = github_mapping.author_roles(node, author_login),
 		body = body_text(node.body),
 		created_at = json.safe_str(node.createdAt) or "",
 		url = json.safe_str(node.url) or "",
@@ -374,12 +376,13 @@ function M.to_comment(node)
 end
 
 ---@param raw table GraphQL `PullRequest`
+---@param author_login string|nil
 ---@return PullsComment|nil
-function M.to_description(raw)
+function M.to_description(raw, author_login)
 	if json.nilify(raw.id) == nil then
 		return nil
 	end
-	return M.to_comment(raw)
+	return M.to_comment(raw, author_login)
 end
 
 ---@param node table GraphQL `PullRequestReview`
@@ -408,8 +411,9 @@ end
 ---@param node table GraphQL `PullRequestReviewComment`
 ---@param thread table GraphQL `PullRequestReviewThread`
 ---@param fallback_parent number|string|nil
+---@param author_login string|nil
 ---@return PullsComment
-function M.to_review_comment(node, thread, fallback_parent)
+function M.to_review_comment(node, thread, fallback_parent, author_login)
 	local path = json.safe_str(thread.path)
 	local anchor = json.nilify(thread.line) or json.nilify(thread.originalLine)
 	local start_line = json.nilify(thread.startLine) or json.nilify(thread.originalStartLine)
@@ -440,6 +444,7 @@ function M.to_review_comment(node, thread, fallback_parent)
 	local result = {
 		id = node.id,
 		author = comment_author(node.author),
+		author_roles = github_mapping.author_roles(node, author_login),
 		body = body_text(node.body),
 		created_at = json.safe_str(node.createdAt) or "",
 		url = json.safe_str(node.url) or "",
@@ -462,9 +467,10 @@ end
 ---@param node table GraphQL `PullRequestReviewComment` returned by a mutation, which has no thread
 ---@param sibling PullsComment A comment from the same thread
 ---@param parent_id number|string|nil
+---@param author_login string|nil
 ---@return PullsComment
-function M.to_thread_comment(node, sibling, parent_id)
-	local result = M.to_review_comment(node, { id = sibling.thread_id }, parent_id)
+function M.to_thread_comment(node, sibling, parent_id, author_login)
+	local result = M.to_review_comment(node, { id = sibling.thread_id }, parent_id, author_login)
 	result.file = sibling.file
 	result.inline = sibling.inline
 	result.outdated = sibling.outdated

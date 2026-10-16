@@ -89,6 +89,7 @@
 ---@field id string
 ---@field url string|nil
 ---@field author AtlasUser|nil
+---@field author_roles string[]|nil
 ---@field body string
 ---@field created_at string
 ---@field parent_id string|number|nil

@@ -1,4 +1,3 @@
---TODO: Holy complex fuck pls refactor
 local M = {}
 
 local threads = require("atlas.ui.components.threads")
@@ -113,15 +112,14 @@ local function comment_item(comment, opts, is_root)
 	local author = presentation.author_name(comment.author)
 	local author_hl = presentation.author_hl(author)
 	local user_icon = icons.get("user")
-	local additional = utils.relative_time(comment.created_at)
+	local additional = table.concat(comment.author_roles or {}, " ")
 	local location = is_root and opts.location and opts.location(comment) or ""
 	if location ~= "" then
-		additional = additional .. "  " .. location
-	end
-	if comment.is_task then
-		additional = "TASK  " .. additional
+		additional = additional == "" and location or (additional .. "  " .. location)
 	end
 
+	local time = { utils.relative_time(comment.created_at), "AtlasTextMuted" }
+	local status = (comment.is_task or is_root) and comment_status(comment) or {}
 	local footer_items = {}
 	local item = {
 		icon = user_icon,
@@ -129,14 +127,12 @@ local function comment_item(comment, opts, is_root)
 		author = author,
 		author_hl = author_hl,
 		additional = { { additional, "AtlasTextMuted" } },
+		right_text = #status > 0 and vim.list_extend(status, { { "  ", "AtlasTextMuted" }, time }) or { time },
 		children = {},
 		footer_items = footer_items,
 		line_map = { comment = comment, entity_kind = comment.is_task and "task" or "comment" },
 		meta = {},
 	}
-	if comment.is_task or is_root then
-		item.right_text = comment_status(comment)
-	end
 
 	local text = comment.body_display or comment.body or ""
 
@@ -215,7 +211,6 @@ local function threads_opts(padding_x, opts)
 
 	return {
 		padding_x = padding_x,
-		show_connectors = false,
 		content_max_lines = content_max_lines,
 		content_truncated_key = opts.content_truncated_key,
 		content_prefix = opts.content_prefix,
@@ -337,7 +332,6 @@ end
 ---@field content_prefix? string
 ---@field content_max_lines? integer|fun(comment: PullsComment): integer|nil
 ---@field content_truncated_key? string
----@field show_task_label? boolean
 
 ---@param nodes AtlasCommentThreadNode[]
 ---@param width integer
@@ -351,22 +345,6 @@ function M.render(nodes, width, opts)
 	end
 	local render = opts.boxed and threads.render_comments or threads.render
 	return render(rendered, width, threads_opts(opts.padding_x or 1, opts))
-end
-
----@param node AtlasCommentThreadNode
----@param width integer
----@param opts AtlasCommentThreadRenderOptions|nil
----@return string[], table[], table<integer, table>
-function M.render_task_compact(node, width, opts)
-	opts = vim.tbl_extend("force", {}, opts or {})
-	opts.expanded = nil
-	local item = build_item(node, opts, true, nil)
-	local task = node.comment
-	local additional = opts.show_task_label == false and "" or "added a task"
-	local timestamp = utils.relative_time(task.created_at)
-	additional = additional ~= "" and (additional .. "  " .. timestamp) or timestamp
-	item.additional = { { additional, "AtlasTextMuted" } }
-	return threads.render({ item }, width, threads_opts(opts.padding_x or 1, opts))
 end
 
 ---@param node AtlasCommentThreadNode
@@ -392,7 +370,6 @@ function M.render_compact(node, width, expanded, location, opts)
 	local replies = descendant_count(node)
 	local fields = {
 		{ location, "Normal" },
-		{ utils.relative_time(comment.created_at), "AtlasTextMuted" },
 		{
 			replies > 0 and string.format("%d %s", replies, replies == 1 and "reply" or "replies") or "",
 			"AtlasTextMuted",
@@ -410,7 +387,6 @@ function M.render_compact(node, width, expanded, location, opts)
 
 	local expander = icons.get(expanded and "fold_open" or "fold_closed")
 	item.icon = expander
-	item.author = "@" .. presentation.author_name(comment.author)
 	item.line_map.tree_key = M.comment_key(comment)
 	return threads.render({ item }, math.max(1, width - 2), threads_opts(0, opts))
 end

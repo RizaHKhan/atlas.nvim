@@ -37,7 +37,7 @@ query($owner:String!,$name:String!,$number:Int!,$endCursor:String,$includeHunks:
               diffHunk @include(if:$includeHunks)
               url
               createdAt
-              author{login ... on User{databaseId} ... on Bot{databaseId}}
+              authorAssociation author{__typename login ... on User{databaseId} ... on Bot{databaseId}}
               replyTo{id}
               pullRequestReview{id state}
               reactionGroups{content viewerHasReacted reactors(first:10){totalCount nodes{...on User{login name} ...on Bot{login}}}}
@@ -787,7 +787,7 @@ local function fetch_comments(pr, include_hunks, on_done)
 			local nodes = thread.comments and thread.comments.nodes or {}
 			for index, node in ipairs(nodes) do
 				local root_id = index > 1 and nodes[1] and nodes[1].id or nil
-				local comment = mapper.to_review_comment(node, thread, root_id)
+				local comment = mapper.to_review_comment(node, thread, root_id, pr.author.username)
 				table.insert(comments, comment)
 				if include_hunks then
 					comment.hunk = diff_parser.parse_hunk(json.safe_str(node.diffHunk) or "")

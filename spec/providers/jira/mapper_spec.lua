@@ -67,3 +67,16 @@ describe("Jira issue mapping", function()
 		assert.matches("^AtlasDynColor%d+$", issue_type.icon.hl_group)
 	end)
 end)
+
+describe("Jira comment author roles", function()
+	it("marks comments by the issue reporter", function()
+		local comments = mapper.to_comments_list({
+			comments = {
+				{ id = "1", author = { accountId = "a1", displayName = "Alice" } },
+				{ id = "2", author = { accountId = "b2", displayName = "Bob" } },
+			},
+		}, "KAN-1", "", "a1")
+		assert.same({ "Author" }, comments[1].author_roles)
+		assert.is_nil(comments[2].author_roles)
+	end)
+end)

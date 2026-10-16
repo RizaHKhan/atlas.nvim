@@ -304,8 +304,9 @@ end
 
 ---@param note table GraphQL `Note`
 ---@param viewer string|nil Username of the current user
+---@param author_username string|nil
 ---@return PullsComment
-function M.to_comment(note, viewer)
+function M.to_comment(note, viewer, author_username)
 	local discussion = json.safe_table(note.discussion)
 	local root = json.safe_table(json.safe_table(json.safe_table(discussion.notes).nodes)[1])
 	local id = gitlab_mapping.note_id(note.id)
@@ -318,6 +319,7 @@ function M.to_comment(note, viewer)
 		parent_id = not is_root and root_id or nil,
 		thread_id = json.safe_str(discussion.id),
 		author = actor_from(note.author),
+		author_roles = gitlab_mapping.author_roles(note, author_username),
 		body = tostring(note.body or ""),
 		created_at = json.safe_str(note.createdAt) or "",
 		resolved_at = resolved and is_root and json.safe_str(discussion.resolvedAt) or nil,
@@ -332,8 +334,9 @@ end
 
 ---@param raw table GraphQL `MergeRequest`
 ---@param viewer string|nil Username of the current user
+---@param author_username string|nil
 ---@return PullsComment|nil
-function M.to_description(raw, viewer)
+function M.to_description(raw, viewer, author_username)
 	local id = json.safe_str(raw.id)
 	if not id then
 		return nil
@@ -341,6 +344,7 @@ function M.to_description(raw, viewer)
 	return {
 		id = id,
 		author = actor_from(raw.author),
+		author_roles = gitlab_mapping.author_roles(raw, author_username),
 		body = tostring(raw.description or ""),
 		created_at = json.safe_str(raw.createdAt) or "",
 		reactions = gitlab_mapping.award_reactions(json.safe_table(raw.awardEmoji).nodes, viewer),
@@ -351,8 +355,9 @@ end
 ---@param note table REST note of a discussion
 ---@param discussion table REST discussion
 ---@param mr_url string
+---@param author_username string|nil
 ---@return PullsComment
-function M.to_discussion_note(note, discussion, mr_url)
+function M.to_discussion_note(note, discussion, mr_url, author_username)
 	local root = json.safe_table(json.safe_table(discussion.notes)[1])
 	local is_root = root.id == note.id
 	local resolved = root.resolved == true
@@ -365,6 +370,7 @@ function M.to_discussion_note(note, discussion, mr_url)
 		parent_id = not is_root and gitlab_mapping.note_id(root.id) or nil,
 		thread_id = "gid://gitlab/Discussion/" .. tostring(discussion.id),
 		author = actor_from(note.author),
+		author_roles = gitlab_mapping.author_roles(note, author_username),
 		body = tostring(note.body or ""),
 		created_at = tostring(note.created_at or ""),
 		resolved_at = resolved and is_root and json.safe_str(note.resolved_at) or nil,

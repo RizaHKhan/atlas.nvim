@@ -6,7 +6,6 @@
 ---@field commits string|nil
 ---@field approve string|nil
 ---@field request_changes string|nil
----@field diff string|nil
 ---@field diffstat string|nil
 ---@field comments string|nil
 ---@field activity string|nil
