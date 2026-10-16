@@ -10,9 +10,11 @@ function M.preview(tag)
 	if tag.author and tag.author ~= "" then
 		table.insert(lines, "Author: " .. tag.author)
 	end
+
 	if tag.tag_date and tag.tag_date ~= "" then
 		table.insert(lines, "Tag date: " .. tag.tag_date)
 	end
+
 	local annotation = tag.description and tag.description ~= "" and tag.description or nil
 	local message = annotation or tag.message
 	if message and message ~= "" then
@@ -20,6 +22,7 @@ function M.preview(tag)
 		table.insert(lines, annotation and "Tag annotation:" or "Commit message:")
 		vim.list_extend(lines, utils.sanitize_lines(message))
 	end
+
 	return { title = tag.name, lines = lines }
 end
 
@@ -41,6 +44,7 @@ function M.render(state, width)
 			_item = { tag = tag },
 		})
 	end
+
 	local lines, line_map, spans = table_tree.render({
 		columns = {
 			{ key = "name", name = "Tag", can_grow = false, hl = "Normal" },
@@ -53,6 +57,7 @@ function M.render(state, width)
 		margin = 0,
 		show_header = false,
 	})
+
 	for row, selection in ipairs(line_map) do
 		if selection.tag.name == state.expanded then
 			local details = {}
@@ -63,14 +68,17 @@ function M.render(state, width)
 					end
 				end
 			end
+
 			for _, span in ipairs(spans) do
 				if span.line >= row then
 					span.line = span.line + #details
 				end
 			end
+
 			for index = #lines, row + 1, -1 do
 				line_map[index + #details] = line_map[index]
 			end
+
 			for index, line in ipairs(details) do
 				table.insert(lines, row + index, line)
 				line_map[row + index] = { tag = selection.tag, detail = index }
@@ -81,9 +89,11 @@ function M.render(state, width)
 					hl_group = "AtlasTextMuted",
 				})
 			end
+
 			break
 		end
 	end
+
 	return lines, line_map, spans
 end
 

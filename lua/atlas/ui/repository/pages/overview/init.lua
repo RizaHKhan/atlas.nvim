@@ -35,6 +35,7 @@ local function render(state)
 	if not utils.buffer.valid(state.buf) or not utils.window.valid(state.win) then
 		return
 	end
+
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	local details = state.details
 	if type(details) == "string" then
@@ -45,8 +46,10 @@ local function render(state)
 			end_row = vim.api.nvim_buf_line_count(state.buf),
 			line_hl_group = loading and "Normal" or "AtlasLogError",
 		})
+
 		return
 	end
+
 	local lines, spans = renderer.render(details, vim.api.nvim_win_get_width(state.win))
 
 	vim.bo[state.buf].modifiable = true
@@ -58,6 +61,7 @@ local function render(state)
 			line_hl_group = span.line_hl_group,
 		})
 	end
+
 	vim.bo[state.buf].modifiable = false
 end
 
@@ -79,10 +83,12 @@ local function load(state)
 			for key in pairs(state.repo) do
 				state.repo[key] = details[key]
 			end
+
 			for key, value in pairs(details) do
 				state.repo[key] = value
 			end
 		end
+
 		state.details = details or err or "Failed to load repository"
 		render(state)
 		state.statusline:clear_notice()
@@ -106,12 +112,14 @@ function M.open(opts)
 		refresh_keys = resolver.resolve("ui.refresh") or {},
 		browser_keys = resolver.resolve("ui.open_in_browser") or {},
 	}
+
 	states[state.buf] = state
 	state.spinner.on_tick = function()
 		if state.spinner:is_running() then
 			render(state)
 		end
 	end
+
 	vim.wo[state.win].wrap = true
 	vim.wo[state.win].linebreak = true
 	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
@@ -120,6 +128,7 @@ function M.open(opts)
 			render(state)
 		end,
 	})
+
 	for _, buf in ipairs({ state.buf, state.sidebar_buf }) do
 		help.register("General", {
 			{
@@ -144,6 +153,7 @@ function M.open(opts)
 			},
 		}, { buffer = buf, index = 1 })
 	end
+
 	render(state)
 end
 
@@ -158,9 +168,11 @@ function M.close(buf)
 	for _, buffer in ipairs({ state.buf, state.sidebar_buf }) do
 		help.remove("General", { { key = state.refresh_keys }, { key = state.browser_keys } }, { buffer = buffer })
 	end
+
 	if utils.window.valid(state.win) then
 		vim.wo[state.win].wrap = false
 	end
+
 	if utils.buffer.valid(state.buf) then
 		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	end

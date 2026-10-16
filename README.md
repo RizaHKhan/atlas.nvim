@@ -285,7 +285,7 @@ Save searches as bookmarks, or press `*` to star a pull request or issue. Both a
 - Save issue descriptions as templates and reuse them when creating issues.
 - Close or reopen GitHub/GitLab issues and change Jira workflow states.
 - Jump between linked issues and pull requests and back, or browse related issues and sub-issues.
-- Read GitHub and GitLab notifications, open the related item, and mark them as read or done.
+- Read GitHub and GitLab notifications, open them in Atlas, and mark them as read or done.
 - Remap shortcuts or assign multiple keys to the same action.
 - Set local repository paths and PR templates per project.
 

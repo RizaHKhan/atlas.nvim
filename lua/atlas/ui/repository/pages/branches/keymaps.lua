@@ -19,6 +19,7 @@ function M.setup(buf, sidebar_buf, callbacks)
 		callback = callbacks.refresh,
 		opts = { nowait = true, silent = true },
 	}
+
 	local actions = {
 		{ key = resolver.resolve("ui.next_page"), desc = "Next page", callback = callbacks.next_page, index = 16 },
 		{
@@ -66,6 +67,7 @@ function M.setup(buf, sidebar_buf, callbacks)
 		},
 		{ key = resolver.resolve("ui.delete"), desc = "Delete branch", callback = callbacks.delete, index = 90 },
 	}
+
 	local groups = { General = { refresh }, Filters = {} }
 	for _, action in ipairs(actions) do
 		local keys = action.key
@@ -79,6 +81,7 @@ function M.setup(buf, sidebar_buf, callbacks)
 			})
 		end
 	end
+
 	installed[buf] = groups
 	help.register("General", groups.General, { buffer = buf, index = 1 })
 	help.register("Filters", groups.Filters, { buffer = buf, index = 2 })
@@ -92,6 +95,7 @@ function M.clear(buf)
 		for group, items in pairs(installed[buf]) do
 			help.remove(group, items, { buffer = buf })
 		end
+
 		installed[buf] = nil
 	end
 end

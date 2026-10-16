@@ -38,6 +38,7 @@ local function current(state)
 	if not utils.window.valid(state.win) then
 		return nil
 	end
+
 	return state.line_map[vim.api.nvim_win_get_cursor(state.win)[1]]
 end
 
@@ -47,6 +48,7 @@ local function render(state, selected_id)
 	if states[state.buf] ~= state or not utils.window.valid(state.win) or not utils.buffer.valid(state.buf) then
 		return
 	end
+
 	state.line_map = {}
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	local runs = state.runs
@@ -57,16 +59,20 @@ local function render(state, selected_id)
 			end_row = vim.api.nvim_buf_line_count(state.buf),
 			line_hl_group = runs == "loading" and "Normal" or "AtlasLogError",
 		})
+
 		return
 	end
+
 	if #runs == 0 then
 		utils.buffer.center_message(
 			state.buf,
 			state.win,
 			"No builds found for this branch.\nPress b to view another branch."
 		)
+
 		return
 	end
+
 	local lines, line_map, spans = renderer.render(state, vim.api.nvim_win_get_width(state.win))
 	state.line_map = line_map
 	vim.bo[state.buf].modifiable = true
@@ -77,6 +83,7 @@ local function render(state, selected_id)
 			hl_group = span.hl_group,
 		})
 	end
+
 	vim.bo[state.buf].modifiable = false
 	if selected_id then
 		for row = 1, #lines do
@@ -101,11 +108,13 @@ local function load(state)
 		render(state)
 		return
 	end
+
 	if not state.branch or state.branch == "" then
 		state.runs = "No default branch available. Press b to choose a branch."
 		render(state)
 		return
 	end
+
 	state.runs = "loading"
 	state.spinner:start()
 	state.statusline:notify("loading", "Loading builds...")
@@ -130,8 +139,10 @@ local function load(state)
 					break
 				end
 			end
+
 			state.selected_id = selected_run and selected_run.id
 		end
+
 		render(state, state.selected_id)
 	end)
 end
@@ -141,11 +152,13 @@ local function change_branch(state)
 	if not state.backend or not state.backend.fetch_history or state.runs == "loading" then
 		return
 	end
+
 	local repository = state.provider.capabilities.repository
 	if not repository then
 		notify.info("Branches are not available for this repository")
 		return
 	end
+
 	picker.search({
 		title = "Builds for branch",
 		fetch_on_open = true,
@@ -164,6 +177,7 @@ local function change_branch(state)
 			if not branch or states[state.buf] ~= state then
 				return
 			end
+
 			state.branch = branch.name
 			state.selected_id = nil
 			state.line_map = {}
@@ -189,6 +203,7 @@ local function register(state, buf, actions)
 			}
 		end
 	end
+
 	state.keymaps[buf] = groups
 	help.register("General", groups.General, { buffer = buf, index = 1 })
 	help.register("Filters", groups.Filters, { buffer = buf, index = 2 })
@@ -215,6 +230,7 @@ function M.open(opts)
 		group = vim.api.nvim_create_augroup("AtlasRepositoryBuilds" .. opts.buf, { clear = true }),
 		keymaps = {},
 	}
+
 	states[state.buf] = state
 	vim.wo[state.win].cursorline = true
 	state.spinner.on_tick = function()
@@ -222,6 +238,7 @@ function M.open(opts)
 			render(state)
 		end
 	end
+
 	local actions = {
 		{
 			key = resolver.resolve("ui.refresh"),
@@ -241,6 +258,7 @@ function M.open(opts)
 			index = 1,
 		},
 	}
+
 	register(state, state.sidebar_buf, actions)
 	vim.list_extend(actions, {
 		{
@@ -272,6 +290,7 @@ function M.open(opts)
 			index = 4,
 		},
 	})
+
 	register(state, state.buf, actions)
 	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
 		group = state.group,
@@ -280,6 +299,7 @@ function M.open(opts)
 			render(state, run and run.id)
 		end,
 	})
+
 	load(state)
 end
 
@@ -289,6 +309,7 @@ function M.close(buf)
 	if not state then
 		return
 	end
+
 	states[buf] = nil
 	state.requests.cancel()
 	state.spinner:stop()
@@ -299,6 +320,7 @@ function M.close(buf)
 			help.remove(group, items, { buffer = buffer })
 		end
 	end
+
 	if utils.buffer.valid(state.buf) then
 		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	end

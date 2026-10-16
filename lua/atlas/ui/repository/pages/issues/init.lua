@@ -47,6 +47,7 @@ local function render(state)
 	if not utils.buffer.valid(state.buf) or not utils.window.valid(state.win) then
 		return
 	end
+
 	local selected = current(state)
 	local cursor = vim.api.nvim_win_get_cursor(state.win)
 	state.line_map = {}
@@ -59,8 +60,10 @@ local function render(state)
 			end_row = vim.api.nvim_buf_line_count(state.buf),
 			line_hl_group = issues == "loading" and "Normal" or "AtlasLogError",
 		})
+
 		return
 	end
+
 	local width = vim.api.nvim_win_get_width(state.win)
 	local header, spans = " ", {}
 	for _, filter in ipairs({ "open", "closed" }) do
@@ -68,19 +71,23 @@ local function render(state)
 		if state.summary then
 			label = string.format("%s (%d)", label, state.summary[filter])
 		end
+
 		spans[#spans + 1] = {
 			line = 0,
 			start_col = #header,
 			end_col = #header + #label,
 			hl_group = state.filter == filter and "Normal" or "AtlasTextMuted",
 		}
+
 		header = header .. label .. "  "
 	end
+
 	if state.page > 1 or state.next_cursor then
 		local page = "Page " .. state.page .. (state.total_pages and ("/" .. state.total_pages) or "")
 		spans[#spans + 1] = { line = 0, start_col = #header, end_col = #header + #page, hl_group = "AtlasTextMuted" }
 		header = header .. page
 	end
+
 	local lines = { header }
 	for index, item in ipairs(state.summary and state.summary.items or {}) do
 		local label = (item.label .. ": "):gsub("%c", " ")
@@ -88,6 +95,7 @@ local function render(state)
 		if index == 1 or vim.api.nvim_strwidth(lines[#lines] .. text) > width then
 			lines[#lines + 1] = " "
 		end
+
 		local col = #lines[#lines]
 		lines[#lines] = lines[#lines] .. text .. "  "
 		spans[#spans + 1] = {
@@ -96,6 +104,7 @@ local function render(state)
 			end_col = col + math.min(#label, #text),
 			hl_group = "AtlasTextMuted",
 		}
+
 		if #text > #label then
 			spans[#spans + 1] = {
 				line = #lines - 1,
@@ -105,6 +114,7 @@ local function render(state)
 			}
 		end
 	end
+
 	lines[#lines + 1] = ""
 	if #issues == 0 then
 		utils.buffer.center_message(state.buf, state.win, "No " .. state.filter .. " issues found.", lines)
@@ -121,19 +131,23 @@ local function render(state)
 				state.line_map[offset + row] = node._issue
 			end
 		end
+
 		vim.bo[state.buf].modifiable = true
 		vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
 		vim.bo[state.buf].modifiable = false
 	end
+
 	for _, span in ipairs(spans) do
 		vim.api.nvim_buf_set_extmark(state.buf, namespace, span.line, span.start_col or 0, {
 			end_col = span.end_col,
 			hl_group = span.hl_group,
 		})
 	end
+
 	if #issues == 0 then
 		return
 	end
+
 	for row = 1, #lines do
 		local issue = state.line_map[row]
 		if issue and selected and issue.key == selected.key then
@@ -141,6 +155,7 @@ local function render(state)
 			return
 		end
 	end
+
 	vim.api.nvim_win_set_cursor(state.win, { math.min(cursor[1], #lines), 0 })
 end
 
@@ -172,11 +187,13 @@ local function load(state, force_refresh)
 			sort = "desc",
 		}
 	end
+
 	if not fetch or not view then
 		state.issues = "Issues are not available for this provider"
 		render(state)
 		return
 	end
+
 	local filter = state.filter
 	state.issues = "loading"
 	state.spinner:start()
@@ -196,6 +213,7 @@ local function load(state, force_refresh)
 			render(state)
 			return
 		end
+
 		state.issues = result.items
 		state.next_cursor = result.next_cursor
 		state.total_pages = result.total_pages
@@ -217,6 +235,7 @@ local function search(state)
 	if type(issues) == "string" or #issues == 0 then
 		return
 	end
+
 	picker.select({
 		title = state.filter:gsub("^%l", string.upper) .. " issues on this page",
 		items = issues,
@@ -232,6 +251,7 @@ local function search(state)
 			if not issue or states[state.buf] ~= state or not utils.window.valid(state.win) then
 				return
 			end
+
 			for row = 1, vim.api.nvim_buf_line_count(state.buf) do
 				local entry = state.line_map[row]
 				if entry and entry.key == issue.key then
@@ -250,6 +270,7 @@ local function open_panel(state)
 	if not issue then
 		return
 	end
+
 	if state.issue_provider then
 		detail.open(issue, { provider = state.issue_provider })
 	else
@@ -275,6 +296,7 @@ local function register(state, buf, actions)
 			}
 		end
 	end
+
 	state.keymaps[buf] = groups
 	help.register("General", groups.General, { buffer = buf, index = 1 })
 	help.register("Filters", groups.Filters, { buffer = buf, index = 2 })
@@ -304,12 +326,14 @@ function M.open(opts)
 		group = vim.api.nvim_create_augroup("AtlasRepositoryIssues" .. opts.buf, { clear = true }),
 		keymaps = {},
 	}
+
 	states[state.buf] = state
 	state.spinner.on_tick = function()
 		if state.spinner:is_running() then
 			render(state)
 		end
 	end
+
 	vim.wo[state.win].cursorline = true
 	vim.wo[state.win].wrap = false
 	local actions = {
@@ -349,6 +373,7 @@ function M.open(opts)
 				if state.issues == "loading" or not state.next_cursor then
 					return
 				end
+
 				state.page = state.page + 1
 				state.cursors[state.page] = state.next_cursor
 				load(state)
@@ -367,11 +392,13 @@ function M.open(opts)
 			index = 15,
 		},
 	}
+
 	register(state, state.sidebar_buf, actions)
 	local panel_keys = resolver.resolve("ui.select") or {}
 	if not vim.tbl_contains(panel_keys, "p") then
 		panel_keys[#panel_keys + 1] = "p"
 	end
+
 	vim.list_extend(actions, {
 		{
 			key = panel_keys,
@@ -393,6 +420,7 @@ function M.open(opts)
 			index = 4,
 		},
 	})
+
 	register(state, state.buf, actions)
 	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
 		group = state.group,
@@ -402,6 +430,7 @@ function M.open(opts)
 			end
 		end,
 	})
+
 	load(state)
 	local repository = state.provider.capabilities.repository
 	local fetch_summary = repository and repository.fetch_issue_summary
@@ -421,6 +450,7 @@ function M.close(buf)
 	if not state then
 		return
 	end
+
 	states[buf] = nil
 	state.requests.cancel()
 	state.summary_requests.cancel()
@@ -432,9 +462,11 @@ function M.close(buf)
 			help.remove(group, items, { buffer = buffer })
 		end
 	end
+
 	if utils.window.valid(state.win) then
 		vim.wo[state.win].cursorline = false
 	end
+
 	if utils.buffer.valid(state.buf) then
 		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	end

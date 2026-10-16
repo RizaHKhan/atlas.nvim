@@ -56,6 +56,7 @@ local function render(state)
 	if not utils.buffer.valid(state.buf) or not utils.window.valid(state.win) then
 		return
 	end
+
 	local cursor = vim.api.nvim_win_get_cursor(state.win)
 	local selection = state.line_map[cursor[1]]
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
@@ -72,12 +73,14 @@ local function render(state)
 	elseif #tags == 0 then
 		message = "No tags found"
 	end
+
 	if message then
 		utils.buffer.center_message(state.buf, state.win, message)
 		vim.api.nvim_buf_set_extmark(state.buf, namespace, 0, 0, {
 			end_row = vim.api.nvim_buf_line_count(state.buf),
 			line_hl_group = hl_group,
 		})
+
 		return
 	end
 
@@ -91,6 +94,7 @@ local function render(state)
 			hl_group = span.hl_group,
 		})
 	end
+
 	vim.bo[state.buf].modifiable = false
 	local selected_row
 	for row, entry in pairs(line_map) do
@@ -98,12 +102,14 @@ local function render(state)
 			if not entry.detail then
 				selected_row = selected_row or row
 			end
+
 			if selection.detail == entry.detail then
 				selected_row = row
 				break
 			end
 		end
 	end
+
 	if selected_row then
 		vim.api.nvim_win_set_cursor(state.win, { selected_row, cursor[2] })
 	end
@@ -119,6 +125,7 @@ local function load(state, page)
 	if state.page == 1 then
 		state.cursors = {}
 	end
+
 	state.next_cursor = nil
 	state.tags = "loading"
 	state.spinner:start()
@@ -166,6 +173,7 @@ local function search(state)
 			if not tag or states[state.buf] ~= state or not utils.window.valid(state.win) then
 				return
 			end
+
 			state.requests.cancel()
 			state.requests = requests.new()
 			for row, entry in pairs(state.line_map) do
@@ -175,6 +183,7 @@ local function search(state)
 					return
 				end
 			end
+
 			state.page = 1
 			state.cursors = {}
 			state.next_cursor = nil
@@ -195,17 +204,21 @@ local function open_diff(state)
 	if not tag then
 		return
 	end
+
 	if not state.root then
 		notify.warn(
 			state.root_loading and "Resolving local repository..."
 				or "Configure this repository under pulls.repo_config.paths to open diffs"
 		)
+
 		return
 	end
+
 	if tag.hash == "" then
 		notify.warn("This tag has no target commit")
 		return
 	end
+
 	diff.open_commit({ root = state.root, commit = tag.hash }, function(err)
 		if err then
 			notify.error(err)
@@ -233,12 +246,14 @@ function M.open(opts)
 		statusline = opts.statusline,
 		group = vim.api.nvim_create_augroup("AtlasRepositoryTags" .. opts.buf, { clear = true }),
 	}
+
 	states[state.buf] = state
 	state.spinner.on_tick = function()
 		if state.spinner:is_running() then
 			render(state)
 		end
 	end
+
 	vim.wo[state.win].cursorline = true
 	keymaps.setup(state.buf, state.sidebar_buf, {
 		search = function()
@@ -293,6 +308,7 @@ function M.open(opts)
 			if not tag then
 				return
 			end
+
 			vim.fn.setreg("+", tag.hash)
 			notify.success("Copied commit SHA")
 		end,
@@ -308,6 +324,7 @@ function M.open(opts)
 			end
 		end,
 	})
+
 	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
 		group = state.group,
 		callback = function(event)
@@ -316,6 +333,7 @@ function M.open(opts)
 			end
 		end,
 	})
+
 	load(state)
 	state.root_request.run(function(done)
 		return history.resolve(opts.repo, done)
@@ -323,6 +341,7 @@ function M.open(opts)
 		if states[state.buf] ~= state or not utils.window.has_buffer(state.win, state.buf) then
 			return
 		end
+
 		state.root = root
 		state.root_loading = false
 	end)
@@ -334,6 +353,7 @@ function M.close(buf)
 	if not state then
 		return
 	end
+
 	info.close(state.win)
 	states[buf] = nil
 	state.root_request.cancel()
@@ -346,6 +366,7 @@ function M.close(buf)
 	if utils.window.valid(state.win) then
 		vim.wo[state.win].cursorline = false
 	end
+
 	if utils.buffer.valid(state.buf) then
 		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	end

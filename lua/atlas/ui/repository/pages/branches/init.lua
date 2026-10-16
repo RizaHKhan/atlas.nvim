@@ -60,6 +60,7 @@ local function render(state)
 	if not utils.buffer.valid(state.buf) or not utils.window.valid(state.win) then
 		return
 	end
+
 	local cursor = vim.api.nvim_win_get_cursor(state.win)
 	local selection = state.line_map[cursor[1]]
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
@@ -76,12 +77,14 @@ local function render(state)
 	elseif #branches == 0 then
 		message = "No branches found"
 	end
+
 	if message then
 		utils.buffer.center_message(state.buf, state.win, message)
 		vim.api.nvim_buf_set_extmark(state.buf, namespace, 0, 0, {
 			end_row = vim.api.nvim_buf_line_count(state.buf),
 			line_hl_group = hl_group,
 		})
+
 		return
 	end
 
@@ -95,6 +98,7 @@ local function render(state)
 			hl_group = span.hl_group,
 		})
 	end
+
 	vim.bo[state.buf].modifiable = false
 	for row, entry in pairs(line_map) do
 		if selection and entry.branch.name == selection.branch.name then
@@ -113,6 +117,7 @@ local function clear_commits(state)
 		state.commit_request.cancel()
 		state.commit_request = nil
 	end
+
 	state.expanded = nil
 	state.commits = nil
 	if not state.busy then
@@ -128,8 +133,10 @@ local function load_history(state, branch)
 			state.root_loading and "Resolving local repository..."
 				or "Configure this repository under pulls.repo_config.paths to browse its commits"
 		)
+
 		return
 	end
+
 	clear_commits(state)
 	state.expanded = branch.name
 	state.commits = "loading"
@@ -139,6 +146,7 @@ local function load_history(state, branch)
 		if not state.busy then
 			state.statusline:clear_notice()
 		end
+
 		state.commits = result or err or "Failed to load commits"
 		render(state)
 	end)
@@ -150,6 +158,7 @@ local function load(state, page)
 	if state.busy then
 		return
 	end
+
 	local repository = state.provider.capabilities.repository
 	local expanded = state.expanded
 	clear_commits(state)
@@ -159,6 +168,7 @@ local function load(state, page)
 	if state.page == 1 then
 		state.cursors = {}
 	end
+
 	state.next_cursor = nil
 	state.branches = "loading"
 	state.spinner:start()
@@ -174,6 +184,7 @@ local function load(state, page)
 		if not utils.buffer.valid(state.buf) or not utils.window.valid(state.win) then
 			return
 		end
+
 		state.branches = branches or err or "Failed to load branches"
 		state.next_cursor = next_cursor
 		state.cursors[state.page + 1] = next_cursor
@@ -181,6 +192,7 @@ local function load(state, page)
 		if utils.window.valid(state.win) and state.line_map[1] then
 			vim.api.nvim_win_set_cursor(state.win, { 1, 0 })
 		end
+
 		if expanded and branches then
 			for _, branch in ipairs(branches) do
 				if branch.name == expanded then
@@ -198,6 +210,7 @@ local function search(state)
 	if state.busy then
 		return
 	end
+
 	local branches = state.branches
 	picker.search({
 		title = "Branches",
@@ -220,6 +233,7 @@ local function search(state)
 			if not branch or states[state.buf] ~= state or not utils.window.valid(state.win) then
 				return
 			end
+
 			state.requests.cancel()
 			state.requests = requests.new()
 			for row, entry in pairs(state.line_map) do
@@ -229,6 +243,7 @@ local function search(state)
 					return
 				end
 			end
+
 			clear_commits(state)
 			state.page = 1
 			state.cursors = {}
@@ -252,6 +267,7 @@ local function open_pipeline(provider_id, repo, branch)
 		notify.warn("Pipelines are not available for this provider")
 		return
 	end
+
 	pipelines.open({
 		provider = provider.id,
 		repo_full_name = repo.full_name,
@@ -265,14 +281,17 @@ local function open_diff(state)
 	if not selection then
 		return
 	end
+
 	local root = state.root
 	if not root then
 		notify.warn(
 			state.root_loading and "Resolving local repository..."
 				or "Configure this repository under pulls.repo_config.paths to open diffs"
 		)
+
 		return
 	end
+
 	local commit = selection.commit
 	if commit then
 		diff.open_commit({ root = root, commit = commit.hash }, function(err)
@@ -280,6 +299,7 @@ local function open_diff(state)
 				notify.error(err)
 			end
 		end)
+
 		return
 	end
 
@@ -293,6 +313,7 @@ local function open_diff(state)
 			table.insert(bases, candidate)
 		end
 	end
+
 	picker.search({
 		title = "Compare " .. branch.name .. " against",
 		initial_items = bases,
@@ -317,6 +338,7 @@ local function open_diff(state)
 			if not base or states[state.buf] ~= state then
 				return
 			end
+
 			state.statusline:notify("loading", "Preparing branch diff...")
 			state.requests.run(function(done)
 				return git.fetch(root, { base, branch }, { repo_url = state.repo.html_url }, done)
@@ -326,6 +348,7 @@ local function open_diff(state)
 					notify.error(err or "Failed to fetch branch commits")
 					return
 				end
+
 				diff.open_range({ root = root, base = base.hash, head = branch.hash }, function(open_err)
 					if open_err then
 						notify.error(open_err)
@@ -342,6 +365,7 @@ local function select_current(state)
 	if not selection or selection.commit or state.busy then
 		return
 	end
+
 	if state.expanded == selection.branch.name then
 		clear_commits(state)
 		render(state)
@@ -356,14 +380,17 @@ local function checkout_branch(state, branch)
 	if state.busy then
 		return
 	end
+
 	local root = state.root
 	if not root then
 		notify.warn(
 			state.root_loading and "Resolving local repository..."
 				or "Configure this repository under pulls.repo_config.paths to check out branches"
 		)
+
 		return
 	end
+
 	state.busy = true
 	state.statusline:notify("loading", "Checking out " .. branch.name .. "...")
 	state.requests.run(function(done)
@@ -375,6 +402,7 @@ local function checkout_branch(state, branch)
 			notify.error(err or "Failed to check out branch")
 			return
 		end
+
 		notify.success("Checked out " .. branch.name)
 	end)
 end
@@ -385,15 +413,18 @@ local function delete_branch(state)
 	if not selection or selection.commit or state.busy then
 		return
 	end
+
 	local branch = selection.branch
 	if branch.name == state.repo.default_branch or branch.protected then
 		notify.warn("Default and protected branches cannot be deleted")
 		return
 	end
+
 	local repository = state.provider.capabilities.repository
 	if not repository.delete_branch then
 		return
 	end
+
 	vim.ui.input({
 		prompt = string.format("Delete remote branch '%s' from '%s'? [y/N]: ", branch.name, state.repo.full_name),
 	}, function(answer)
@@ -401,6 +432,7 @@ local function delete_branch(state)
 		if (confirmed ~= "y" and confirmed ~= "yes") or states[state.buf] ~= state or state.busy then
 			return
 		end
+
 		state.busy = true
 		state.statusline:notify("loading", "Deleting branch...")
 		state.requests.run(function(done)
@@ -412,6 +444,7 @@ local function delete_branch(state)
 				notify.error(err or "Failed to delete branch")
 				return
 			end
+
 			notify.success("Deleted branch " .. branch.name)
 			load(state)
 		end)
@@ -440,12 +473,14 @@ function M.open(opts)
 		statusline = opts.statusline,
 		group = vim.api.nvim_create_augroup("AtlasRepositoryBranches" .. opts.buf, { clear = true }),
 	}
+
 	states[state.buf] = state
 	state.spinner.on_tick = function()
 		if state.spinner:is_running() then
 			render(state)
 		end
 	end
+
 	vim.wo[state.win].cursorline = true
 	keymaps.setup(state.buf, state.sidebar_buf, {
 		search = function()
@@ -492,10 +527,12 @@ function M.open(opts)
 			if not selection or state.busy then
 				return
 			end
+
 			local actions = { "Open builds" }
 			if state.root and not selection.commit then
 				actions[#actions + 1] = "Checkout branch"
 			end
+
 			picker.select({
 				title = "Branch actions",
 				items = actions,
@@ -514,6 +551,7 @@ function M.open(opts)
 			delete_branch(state)
 		end,
 	})
+
 	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
 		group = state.group,
 		callback = function(event)
@@ -522,6 +560,7 @@ function M.open(opts)
 			end
 		end,
 	})
+
 	load(state)
 	state.root_request.run(function(done)
 		return git.resolve(opts.repo, done)
@@ -529,6 +568,7 @@ function M.open(opts)
 		if states[state.buf] ~= state or not utils.window.has_buffer(state.win, state.buf) then
 			return
 		end
+
 		state.root = root
 		state.root_loading = false
 		render(state)
@@ -541,6 +581,7 @@ function M.close(buf)
 	if not state then
 		return
 	end
+
 	info.close(state.win)
 	states[buf] = nil
 	state.root_request.cancel()
@@ -554,6 +595,7 @@ function M.close(buf)
 	if utils.window.valid(state.win) then
 		vim.wo[state.win].cursorline = false
 	end
+
 	if utils.buffer.valid(state.buf) then
 		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	end

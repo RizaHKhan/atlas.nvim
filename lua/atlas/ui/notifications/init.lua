@@ -7,11 +7,6 @@ local resolver = require("atlas.core.keymaps")
 local renderer = require("atlas.ui.notifications.renderer")
 local state = require("atlas.ui.notifications.state")
 
----@type PullsProvider|IssuesProvider|nil
-local popup_provider = nil
----@type fun()|nil
-local on_change = nil
-
 ---@param action_id AtlasKeymapActionId|string
 ---@return string[]
 local function resolve_keys(action_id)
@@ -23,6 +18,7 @@ local function popup_keys()
 		mark_read = resolve_keys("ui.notifications.mark_read"),
 		mark_done = resolve_keys("ui.notifications.mark_done"),
 		refresh = resolve_keys("ui.refresh_view"),
+		open = resolve_keys("ui.select"),
 		open_in_browser = resolve_keys("ui.open_in_browser"),
 		close = resolve_keys("ui.close"),
 	}
@@ -31,17 +27,20 @@ end
 local ns = vim.api.nvim_create_namespace("atlas.notifications")
 
 local win = nil
-local buf = nil
 local active_handle = nil
----@type table<integer, table>
+local loading = false
+local load_error = nil
+---@type table<integer, AtlasNotification>
 local current_line_map = {}
-
-local function valid_buf(b)
-	return type(b) == "number" and vim.api.nvim_buf_is_valid(b)
-end
 
 local function valid_win(w)
 	return type(w) == "number" and vim.api.nvim_win_is_valid(w)
+end
+
+---@param provider PullsProvider|IssuesProvider
+---@return AtlasNotificationsCapability
+local function capability(provider)
+	return assert(provider.capabilities.notifications)
 end
 
 local function cancel_active()
@@ -61,28 +60,10 @@ local function compute_geometry()
 	return width, height, row, col
 end
 
-local function close_win()
+function M.close()
 	if valid_win(win) then
 		pcall(vim.api.nvim_win_close, win, true)
 	end
-	win = nil
-end
-
-local function delete_buf()
-	if valid_buf(buf) then
-		pcall(vim.api.nvim_buf_delete, buf, { force = true })
-	end
-	buf = nil
-end
-
-function M.is_open()
-	return valid_win(win)
-end
-
-function M.close()
-	cancel_active()
-	close_win()
-	delete_buf()
 end
 
 ---@param target_buf integer
@@ -104,20 +85,23 @@ local function flush(target_buf, lines, spans)
 	end
 end
 
-local function window_title()
-	local provider = popup_provider
-	local provider_name = provider and provider.name or "Atlas"
+---@param provider PullsProvider|IssuesProvider
+local function window_title(provider)
 	local bell = icons.get("bell")
-	return string.format(" %s Notifications (%s) ", bell, provider_name)
+	return string.format(" %s Notifications (%s) ", bell, provider.name)
 end
 
-local function build_footer_text()
+---@param provider PullsProvider|IssuesProvider
+local function build_footer_text(provider)
 	local keys = popup_keys()
 	local items = {}
-	if keys.open_in_browser[1] then
-		table.insert(items, keys.open_in_browser[1] .. " open")
+	if keys.open[1] then
+		table.insert(items, keys.open[1] .. " open")
 	end
-	if keys.mark_read[1] then
+	if keys.open_in_browser[1] then
+		table.insert(items, keys.open_in_browser[1] .. " browser")
+	end
+	if keys.mark_read[1] and capability(provider).mark_read then
 		table.insert(items, keys.mark_read[1] .. " mark read")
 	end
 	if keys.mark_done[1] then
@@ -132,103 +116,62 @@ local function build_footer_text()
 	return " " .. table.concat(items, " | ") .. " "
 end
 
-local function rerender()
-	if not valid_win(win) or not valid_buf(buf) or popup_provider == nil then
+---@param provider PullsProvider|IssuesProvider
+local function rerender(provider)
+	if not valid_win(win) then
 		return
 	end
-	local width = vim.api.nvim_win_get_width(win)
-	local record = state.get(popup_provider.id)
-
 	local body_lines, body_spans, body_map
-
-	if record.is_loading then
-		body_lines = { "  Loading notifications..." }
-		body_spans = { { line = 0, start_col = 0, end_col = #body_lines[1], hl_group = "AtlasTextMuted" } }
-		body_map = {}
-	elseif record.error then
-		local err = "  Error: " .. tostring(record.error)
-		body_lines = { err }
-		body_spans = { { line = 0, start_col = 0, end_col = #err, hl_group = "AtlasLogError" } }
-		body_map = {}
+	if loading then
+		body_lines, body_spans, body_map = renderer.message("Loading notifications...", "AtlasTextMuted")
+	elseif load_error then
+		body_lines, body_spans, body_map = renderer.message("Error: " .. load_error, "AtlasLogError")
 	else
-		body_lines, body_spans, body_map = renderer.render(record.notifications, width)
+		body_lines, body_spans, body_map = renderer.render(state.get(provider.id), vim.api.nvim_win_get_width(win))
 	end
 
-	flush(buf, body_lines, body_spans)
+	flush(vim.api.nvim_win_get_buf(win), body_lines, body_spans)
 	current_line_map = body_map
 end
 
 local function focus_first()
-	if not valid_win(win) then
-		return
-	end
-	local min = nil
-	for lnum, item in pairs(current_line_map) do
-		if item.kind == "notification" then
-			if min == nil or lnum < min then
-				min = lnum
-			end
-		end
-	end
-	if min ~= nil then
-		pcall(vim.api.nvim_win_set_cursor, win, { min, 0 })
+	if valid_win(win) then
+		pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
 	end
 end
 
+---@return AtlasNotification|nil
 local function notification_under_cursor()
 	if not valid_win(win) then
 		return nil
 	end
-	local cursor = vim.api.nvim_win_get_cursor(win)
-	local lnum = cursor[1]
-	local item = current_line_map[lnum]
-	if item and item.kind == "notification" then
-		return item.notification
-	end
-	for offset = 1, 3 do
-		local up = current_line_map[lnum - offset]
-		if up and up.kind == "notification" then
-			return up.notification
-		end
-		local down = current_line_map[lnum + offset]
-		if down and down.kind == "notification" then
-			return down.notification
-		end
-	end
-	return nil
+	local lnum = vim.api.nvim_win_get_cursor(win)[1]
+	return current_line_map[lnum] or current_line_map[lnum - 1]
 end
 
+---@param provider PullsProvider|IssuesProvider
 ---@param force_refresh boolean
-local function load(force_refresh)
-	local provider = popup_provider
-	local notifications_api = provider and provider.capabilities.notifications
-	if provider == nil or notifications_api == nil then
-		return
-	end
-	local record = state.get(provider.id)
-
+local function load(provider, force_refresh)
 	cancel_active()
-	record.is_loading = true
-	record.error = nil
-	rerender()
+	loading = true
+	load_error = nil
+	rerender(provider)
 
-	active_handle = notifications_api.fetch({ force_refresh = force_refresh }, function(notifications, err)
+	active_handle = capability(provider).fetch({ force_refresh = force_refresh }, function(notifications, err)
 		active_handle = nil
-		record.is_loading = false
+		loading = false
 		if err then
-			record.error = tostring(err)
-			notify.error(string.format("Failed to fetch notifications: %s", tostring(err)))
+			load_error = tostring(err)
+			notify.error(string.format("Failed to fetch notifications: %s", load_error))
 		else
-			record.error = nil
-			state.set_notifications(provider.id, notifications)
+			state.set(provider.id, notifications or {})
 		end
-		if popup_provider == provider then
-			rerender()
-			focus_first()
-		end
+		rerender(provider)
+		focus_first()
 	end)
 end
 
+---@param notification AtlasNotification|nil
 local function open_in_browser(notification)
 	if notification == nil or not notification.url or notification.url == "" then
 		notify.warn("Notification has no URL")
@@ -242,64 +185,82 @@ local function open_in_browser(notification)
 	notify.info("Opened in browser")
 end
 
-local function mark_read(notification)
-	if notification == nil then
-		return
-	end
-	if not notification.unread then
-		return
-	end
-
-	local provider = popup_provider
-	local notifications = provider and provider.capabilities.notifications
-	if provider == nil or notifications == nil then
-		notify.warn("Provider does not support marking as read")
+---@param provider PullsProvider|IssuesProvider
+---@param notification AtlasNotification|nil
+---@param on_update fun()|nil
+---@param opts { quiet: boolean|nil }|nil
+local function mark_read(provider, notification, on_update, opts)
+	local mark = capability(provider).mark_read
+	if notification == nil or not notification.unread or mark == nil then
 		return
 	end
 
-	notify.loading("Marking as read...")
-	notifications.mark_read(notification.id, function(ok, err)
+	local quiet = opts and opts.quiet
+	if not quiet then
+		notify.loading("Marking as read...")
+	end
+
+	mark(notification.id, function(ok, err)
 		if not ok then
 			notify.error(string.format("Failed to mark as read: %s", tostring(err)))
 			return
 		end
+
 		state.mark_local_read(provider.id, notification.id)
-		notify.success("Marked as read", { timeout = 1200 })
-		rerender()
-		if on_change then
-			on_change()
+		if not quiet then
+			notify.success("Marked as read", { timeout = 1200 })
+		end
+
+		rerender(provider)
+		if on_update then
+			on_update()
 		end
 	end)
 end
 
-local function mark_done(notification)
+---@param provider PullsProvider|IssuesProvider
+---@param notification AtlasNotification|nil
+---@param on_update fun()|nil
+local function open(provider, notification, on_update)
 	if notification == nil then
 		return
 	end
-	local provider = popup_provider
-	local notifications = provider and provider.capabilities.notifications
-	if provider == nil or notifications == nil then
-		notify.warn("Provider does not support marking as done")
+
+	M.close()
+	if not capability(provider).open(notification) then
+		open_in_browser(notification)
+	end
+
+	mark_read(provider, notification, on_update, { quiet = true })
+end
+
+---@param provider PullsProvider|IssuesProvider
+---@param notification AtlasNotification|nil
+---@param on_update fun()|nil
+local function mark_done(provider, notification, on_update)
+	if notification == nil then
 		return
 	end
 
 	notify.loading("Marking as done...")
-	notifications.mark_done(notification.id, function(ok, err)
+	capability(provider).mark_done(notification.id, function(ok, err)
 		if not ok then
 			notify.error(string.format("Failed to mark as done: %s", tostring(err)))
 			return
 		end
 		state.remove_local(provider.id, notification.id)
 		notify.success("Marked as done", { timeout = 1200 })
-		rerender()
-		if on_change then
-			on_change()
+		rerender(provider)
+		if on_update then
+			on_update()
 		end
 	end)
 end
 
 ---@param target_buf integer
-local function register_keymaps(target_buf)
+---@param provider PullsProvider|IssuesProvider
+---@param on_update fun()|nil
+local function register_keymaps(target_buf, provider, on_update)
 	local function map(lhs, fn, desc)
 		vim.keymap.set("n", lhs, fn, { buffer = target_buf, nowait = true, silent = true, desc = desc })
 	end
@@ -317,8 +278,14 @@ local function register_keymaps(target_buf)
 
 	for _, k in ipairs(keys.refresh) do
 		map(k, function()
-			load(true)
+			load(provider, true)
 		end, "Refresh notifications")
+	end
+
+	for _, k in ipairs(keys.open) do
+		map(k, function()
+			open(provider, notification_under_cursor(), on_update)
+		end, "Open notification")
 	end
 
 	for _, k in ipairs(keys.open_in_browser) do
@@ -327,38 +294,40 @@ local function register_keymaps(target_buf)
 		end, "Open notification in browser")
 	end
 
-	for _, k in ipairs(keys.mark_read) do
-		map(k, function()
-			mark_read(notification_under_cursor())
-		end, "Mark notification as read")
+	if capability(provider).mark_read then
+		for _, k in ipairs(keys.mark_read) do
+			map(k, function()
+				mark_read(provider, notification_under_cursor(), on_update)
+			end, "Mark notification as read")
+		end
 	end
 
 	for _, k in ipairs(keys.mark_done) do
 		map(k, function()
-			mark_done(notification_under_cursor())
+			mark_done(provider, notification_under_cursor(), on_update)
 		end, "Mark notification as done")
 	end
 end
 
-local function ensure_buf()
-	if valid_buf(buf) then
-		return buf
-	end
-	buf = vim.api.nvim_create_buf(false, true)
+---@param provider PullsProvider|IssuesProvider
+---@param on_update fun()|nil
+---@return integer
+local function create_buf(provider, on_update)
+	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
 	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
 	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 	vim.api.nvim_set_option_value("filetype", "atlas-ui.notifications", { buf = buf })
 	pcall(vim.treesitter.stop, buf)
-	register_keymaps(buf)
+	register_keymaps(buf, provider, on_update)
 	return buf
 end
 
 ---@param provider PullsProvider|IssuesProvider|nil
 ---@param on_update fun()|nil
 function M.open(provider, on_update)
-	if M.is_open() then
+	if valid_win(win) then
 		vim.api.nvim_set_current_win(win)
 		return
 	end
@@ -368,17 +337,16 @@ function M.open(provider, on_update)
 		return
 	end
 	if provider.capabilities.notifications == nil then
-		notify.warn(string.format("%s does not support notifications", provider.name or "Provider"))
+		notify.warn(string.format("%s does not support notifications", provider.name))
 		return
 	end
 
-	popup_provider = provider
-	on_change = on_update
 	local source_win = vim.api.nvim_get_current_win()
-	local target_buf = ensure_buf()
 	local width, height, row, col = compute_geometry()
+	loading = false
+	load_error = nil
 
-	win = vim.api.nvim_open_win(target_buf, true, {
+	win = vim.api.nvim_open_win(create_buf(provider, on_update), true, {
 		relative = "editor",
 		row = row,
 		col = col,
@@ -386,9 +354,9 @@ function M.open(provider, on_update)
 		height = height,
 		style = "minimal",
 		border = "rounded",
-		title = window_title(),
+		title = window_title(provider),
 		title_pos = "center",
-		footer = build_footer_text(),
+		footer = build_footer_text(provider),
 		footer_pos = "center",
 		zindex = 250,
 	})
@@ -405,40 +373,41 @@ function M.open(provider, on_update)
 		pattern = tostring(win),
 		once = true,
 		callback = function()
+			cancel_active()
 			win = nil
-			delete_buf()
 		end,
 	})
 
-	rerender()
+	rerender(provider)
 
-	if #state.get(provider.id).notifications == 0 then
-		load(false)
+	if #state.get(provider.id) == 0 then
+		load(provider, false)
 	else
 		focus_first()
 	end
 end
 
 ---@param provider PullsProvider|IssuesProvider
----@param opts { force_refresh: boolean|nil, on_done: fun()|nil }|nil
-function M.refresh(provider, opts)
-	opts = opts or {}
-	local notifications_api = provider.capabilities.notifications
-	if notifications_api == nil then
-		return
+---@return integer
+function M.unread_count(provider)
+	local count = 0
+	for _, n in ipairs(state.get(provider.id)) do
+		if n.unread then
+			count = count + 1
+		end
 	end
+	return count
+end
 
-	notifications_api.fetch({ force_refresh = opts.force_refresh == true }, function(notifications, err)
+---@param provider PullsProvider|IssuesProvider
+---@param on_done fun()
+function M.refresh(provider, on_done)
+	capability(provider).fetch(nil, function(notifications, err)
 		if err then
 			return
 		end
-		state.set_notifications(provider.id, notifications)
-		if M.is_open() and popup_provider == provider then
-			rerender()
-		end
-		if opts.on_done then
-			opts.on_done()
-		end
+		state.set(provider.id, notifications or {})
+		on_done()
 	end)
 end
 

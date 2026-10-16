@@ -17,10 +17,12 @@ local function render_header(repo, width)
 	if repo.default_branch then
 		table.insert(metadata, icons.get("branch") .. " " .. repo.default_branch)
 	end
+
 	local created = utils.format_date(repo.created_on)
 	if created ~= "" then
 		table.insert(metadata, "Created " .. created)
 	end
+
 	utils.push(lines, spans, table.concat(metadata, "   "), "AtlasTextMuted")
 	table.insert(lines, "")
 
@@ -38,9 +40,11 @@ local function render_header(repo, width)
 				end_col = #stats + #stat.icon[1],
 				hl_group = stat.icon[2],
 			})
+
 			stats = stats .. stat.icon[1] .. " " .. stat.count .. " " .. stat.label
 		end
 	end
+
 	if stats ~= "" then
 		table.insert(lines, stats)
 		table.insert(lines, "")
@@ -51,6 +55,7 @@ local function render_header(repo, width)
 		for _, topic in ipairs(repo.topics) do
 			table.insert(topics, { label = topic, hl = "AtlasChipActive" })
 		end
+
 		local topic_lines, topic_spans = chips.render(topics, { width = width, padding_x = 0 })
 		utils.append_block(lines, spans, { lines = topic_lines, highlights = topic_spans })
 		table.insert(lines, "")
@@ -99,6 +104,7 @@ function M.render(repo, width)
 		local section_lines, section_spans = render(repo, width)
 		utils.append_block(lines, spans, { lines = section_lines, highlights = section_spans })
 	end
+
 	return lines, spans
 end
 

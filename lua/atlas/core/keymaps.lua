@@ -425,6 +425,7 @@ function M.validate()
 			"ui.notifications.mark_read",
 			"ui.notifications.mark_done",
 			"ui.refresh_view",
+			"ui.select",
 			"ui.open_in_browser",
 			"ui.close",
 		}),

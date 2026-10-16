@@ -19,6 +19,7 @@ function M.render(state, width)
 			expanded = state.expanded == branch.name,
 			_item = { branch = branch },
 		}
+
 		if state.root then
 			row.children = {}
 			local commits = row.expanded and state.commits or nil
@@ -41,6 +42,7 @@ function M.render(state, width)
 					})
 				end
 			end
+
 			if #row.children == 0 then
 				table.insert(row.children, {
 					name = message,
@@ -49,6 +51,7 @@ function M.render(state, width)
 				})
 			end
 		end
+
 		table.insert(rows, row)
 	end
 
@@ -73,11 +76,13 @@ function M.render(state, width)
 			return row._placeholder
 		end,
 	})
+
 	for line, entry in pairs(line_map) do
 		if not entry.branch then
 			line_map[line] = nil
 		end
 	end
+
 	return lines, line_map, spans
 end
 
@@ -92,13 +97,16 @@ function M.preview(branch, commit)
 		"Author: " .. (entry.author or ""),
 		"Date: " .. (entry.date or ""),
 	}
+
 	if branch.protected then
 		table.insert(lines, "Protected: Yes")
 	end
+
 	if entry.message and entry.message ~= "" then
 		table.insert(lines, "")
 		vim.list_extend(lines, utils.sanitize_lines(entry.message))
 	end
+
 	return { title = commit and branch.name .. " · " .. commit.hash:sub(1, 8) or branch.name, lines = lines }
 end
 

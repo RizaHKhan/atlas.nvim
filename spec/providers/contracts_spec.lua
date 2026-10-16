@@ -81,12 +81,16 @@ describe("providers contracts", function()
 	end)
 
 	it("exposes notifications for GitHub and GitLab", function()
-		for _, id in ipairs({ "github", "gitlab" }) do
+		local required = {
+			github = { "fetch", "mark_read", "mark_done", "open" },
+			gitlab = { "fetch", "mark_done", "open" },
+		}
+		for id, functions in pairs(required) do
 			for _, domain in ipairs({ "pulls", "issues" }) do
 				local provider = assert(providers.load(id, domain))
 				assert_functions(
 					provider.capabilities.notifications,
-					{ "fetch", "mark_read", "mark_done" },
+					functions,
 					id .. "." .. domain .. ".notifications"
 				)
 			end

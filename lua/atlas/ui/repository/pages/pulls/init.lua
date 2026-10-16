@@ -47,6 +47,7 @@ local function render(state)
 	if not utils.buffer.valid(state.buf) or not utils.window.valid(state.win) then
 		return
 	end
+
 	local cursor = vim.api.nvim_win_get_cursor(state.win)
 	state.line_map = {}
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
@@ -58,8 +59,10 @@ local function render(state)
 			end_row = vim.api.nvim_buf_line_count(state.buf),
 			line_hl_group = pulls == "loading" and "Normal" or "AtlasLogError",
 		})
+
 		return
 	end
+
 	local header, spans = " ", {}
 	for _, filter in ipairs(filters) do
 		local label = filter:gsub("^%l", string.upper)
@@ -69,13 +72,16 @@ local function render(state)
 			end_col = #header + #label,
 			hl_group = state.filter == filter and "Normal" or "AtlasTextMuted",
 		}
+
 		header = header .. label .. "  "
 	end
+
 	if state.page > 1 or state.next_cursor then
 		local page = "Page " .. state.page .. (state.total_pages and ("/" .. state.total_pages) or "")
 		spans[#spans + 1] = { line = 0, start_col = #header, end_col = #header + #page, hl_group = "AtlasTextMuted" }
 		header = header .. page
 	end
+
 	local lines = { header, "" }
 	if #pulls == 0 then
 		utils.buffer.center_message(state.buf, state.win, "No " .. state.filter .. " pull requests found.", lines)
@@ -91,19 +97,23 @@ local function render(state)
 				state.line_map[offset + row] = item.pr
 			end
 		end
+
 		vim.bo[state.buf].modifiable = true
 		vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
 		vim.bo[state.buf].modifiable = false
 	end
+
 	for _, span in ipairs(spans) do
 		vim.api.nvim_buf_set_extmark(state.buf, namespace, span.line, span.start_col or 0, {
 			end_col = span.end_col,
 			hl_group = span.hl_group,
 		})
 	end
+
 	if #pulls == 0 then
 		return
 	end
+
 	vim.api.nvim_win_set_cursor(state.win, { math.min(cursor[1], #lines), cursor[2] })
 end
 
@@ -120,6 +130,7 @@ local function load(state, force_refresh)
 		render(state)
 		return
 	end
+
 	view._states = { state.filter }
 	state.pulls = "loading"
 	state.spinner:start()
@@ -142,6 +153,7 @@ local function load(state, force_refresh)
 			state.next_cursor = page.next_cursor
 			state.total_pages = page.total_pages
 		end
+
 		render(state)
 		for row = 1, vim.api.nvim_buf_line_count(state.buf) do
 			if state.line_map[row] then
@@ -158,6 +170,7 @@ local function search(state)
 	if type(pulls) == "string" or #pulls == 0 then
 		return
 	end
+
 	picker.select({
 		title = "Pull requests on this page",
 		items = pulls,
@@ -168,6 +181,7 @@ local function search(state)
 			if not pr or states[state.buf] ~= state or not utils.window.valid(state.win) then
 				return
 			end
+
 			for row = 1, vim.api.nvim_buf_line_count(state.buf) do
 				local entry = state.line_map[row]
 				if entry and entry.id == pr.id then
@@ -198,6 +212,7 @@ local function register(state, buf, actions)
 			}
 		end
 	end
+
 	state.keymaps[buf] = groups
 	help.register("General", groups.General, { buffer = buf, index = 1 })
 	help.register("Filters", groups.Filters, { buffer = buf, index = 2 })
@@ -226,12 +241,14 @@ function M.open(opts)
 		group = vim.api.nvim_create_augroup("AtlasRepositoryPulls" .. opts.buf, { clear = true }),
 		keymaps = {},
 	}
+
 	states[state.buf] = state
 	state.spinner.on_tick = function()
 		if state.spinner:is_running() then
 			render(state)
 		end
 	end
+
 	vim.wo[state.win].cursorline = true
 	vim.wo[state.win].wrap = false
 	local actions = {
@@ -260,6 +277,7 @@ function M.open(opts)
 				if state.pulls == "loading" or not state.next_cursor then
 					return
 				end
+
 				state.page = state.page + 1
 				state.cursors[state.page] = state.next_cursor
 				load(state)
@@ -278,6 +296,7 @@ function M.open(opts)
 			index = 15,
 		},
 	}
+
 	for index, filter in ipairs(filters) do
 		actions[#actions + 1] = {
 			key = resolver.resolve("pulls.filters." .. filter),
@@ -291,11 +310,13 @@ function M.open(opts)
 			index = 10 + index,
 		}
 	end
+
 	register(state, state.sidebar_buf, actions)
 	local panel_keys = resolver.resolve("ui.select") or {}
 	if not vim.tbl_contains(panel_keys, "p") then
 		panel_keys[#panel_keys + 1] = "p"
 	end
+
 	vim.list_extend(actions, {
 		{
 			key = resolver.resolve("pulls.open_diff"),
@@ -335,6 +356,7 @@ function M.open(opts)
 			index = 4,
 		},
 	})
+
 	register(state, state.buf, actions)
 	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
 		group = state.group,
@@ -344,6 +366,7 @@ function M.open(opts)
 			end
 		end,
 	})
+
 	load(state)
 end
 
@@ -353,6 +376,7 @@ function M.close(buf)
 	if not state then
 		return
 	end
+
 	states[buf] = nil
 	state.requests.cancel()
 	state.spinner:stop()
@@ -363,9 +387,11 @@ function M.close(buf)
 			help.remove(group, items, { buffer = buffer })
 		end
 	end
+
 	if utils.window.valid(state.win) then
 		vim.wo[state.win].cursorline = false
 	end
+
 	if utils.buffer.valid(state.buf) then
 		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	end

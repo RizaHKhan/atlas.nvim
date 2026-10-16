@@ -42,6 +42,7 @@ function M.render(state, width)
 		if content_width >= vim.fn.strdisplaywidth(leading) then
 			spans[#spans + 1] = { line = #lines - 1, start_col = 0, end_col = #icon, hl_group = hl }
 		end
+
 		if time ~= "" then
 			spans[#spans + 1] =
 				{ line = #lines - 1, start_col = #line - #time, end_col = #line, hl_group = "AtlasTextMuted" }
@@ -51,9 +52,11 @@ function M.render(state, width)
 		if run.commit then
 			parts[#parts + 1] = run.commit:sub(1, 8)
 		end
+
 		add("   " .. table.concat(parts, "  "), "AtlasTextMuted", run)
 		add("")
 	end
+
 	return lines, line_map, spans
 end
 

@@ -19,6 +19,7 @@ function M.setup(buf, sidebar_buf, callbacks)
 		callback = callbacks.refresh,
 		opts = { nowait = true, silent = true },
 	}
+
 	local actions = {
 		{ key = resolver.resolve("ui.next_page"), desc = "Next page", callback = callbacks.next_page, index = 16 },
 		{
@@ -56,6 +57,7 @@ function M.setup(buf, sidebar_buf, callbacks)
 		{ key = resolver.resolve("ui.copy_id"), desc = "Copy commit SHA", callback = callbacks.copy, index = 8 },
 		{ key = resolver.resolve("ui.copy_url"), desc = "Copy tag URL", callback = callbacks.copy_url, index = 9 },
 	}
+
 	local groups = { General = { refresh }, Filters = {} }
 	for _, action in ipairs(actions) do
 		local keys = action.key
@@ -69,6 +71,7 @@ function M.setup(buf, sidebar_buf, callbacks)
 			})
 		end
 	end
+
 	installed[buf] = groups
 	help.register("General", groups.General, { buffer = buf, index = 1 })
 	help.register("Filters", groups.Filters, { buffer = buf, index = 2 })
@@ -82,6 +85,7 @@ function M.clear(buf)
 		for group, items in pairs(installed[buf]) do
 			help.remove(group, items, { buffer = buf })
 		end
+
 		installed[buf] = nil
 	end
 end

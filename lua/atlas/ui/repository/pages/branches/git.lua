@@ -40,6 +40,7 @@ local function parse_commits(output)
 			message = fields[index + 4],
 		})
 	end
+
 	return commits
 end
 
@@ -51,10 +52,12 @@ function M.resolve(repo, on_done)
 	local path, err = checkout.resolve_repo_path(paths, repo.full_name, {
 		require_existing = true,
 	})
+
 	if not path then
 		on_done(nil, err)
 		return nil
 	end
+
 	return git.repo_root(path, on_done)
 end
 
@@ -70,6 +73,7 @@ function M.fetch(root, branches, opts, on_done)
 			on_done(false, "The branch has no commit to load: " .. branch.name)
 			return
 		end
+
 		table.insert(hashes, branch.hash)
 	end
 
@@ -81,16 +85,19 @@ function M.fetch(root, branches, opts, on_done)
 			on_done(false, err)
 			return
 		end
+
 		local refs = {}
 		for index, branch in ipairs(branches) do
 			if not exists[index] then
 				table.insert(refs, "refs/heads/" .. branch.name)
 			end
 		end
+
 		if #refs == 0 then
 			on_done(true, nil)
 			return
 		end
+
 		scope.run(function(done)
 			return git.remote_url(root, "origin", done)
 		end, function(remote)
@@ -98,11 +105,13 @@ function M.fetch(root, branches, opts, on_done)
 				on_done(false, "Branch commits are missing locally and origin does not match this repository")
 				return
 			end
+
 			scope.run(function(done)
 				return git.fetch_refs(root, "origin", refs, done)
 			end, on_done)
 		end)
 	end)
+
 	return scope
 end
 
@@ -122,6 +131,7 @@ function M.checkout(root, branch, opts, on_done)
 			end, on_done)
 			return
 		end
+
 		scope.run(function(done)
 			return git.remote_url(root, "origin", done)
 		end, function(remote)
@@ -129,6 +139,7 @@ function M.checkout(root, branch, opts, on_done)
 				on_done(false, "Cannot fetch branch: origin does not match this repository")
 				return
 			end
+
 			local remote_ref = "refs/remotes/origin/" .. branch.name
 			scope.run(function(done)
 				return git.fetch_refs(root, "origin", { "refs/heads/" .. branch.name .. ":" .. remote_ref }, done)
@@ -137,12 +148,14 @@ function M.checkout(root, branch, opts, on_done)
 					on_done(false, err)
 					return
 				end
+
 				scope.run(function(done)
 					return git.checkout_new_branch(root, branch.name, remote_ref, done)
 				end, on_done)
 			end)
 		end)
 	end)
+
 	return scope
 end
 
@@ -160,6 +173,7 @@ function M.load(root, branch, opts, on_done)
 			on_done(nil, err)
 			return
 		end
+
 		scope.run(function(done)
 			return git.run({
 				"log",
@@ -177,9 +191,11 @@ function M.load(root, branch, opts, on_done)
 				on_done(nil, message ~= "" and message or "Failed to load branch commits")
 				return
 			end
+
 			on_done(parse_commits(result.stdout or ""), nil)
 		end)
 	end)
+
 	return scope
 end
 
