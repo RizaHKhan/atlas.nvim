@@ -7,7 +7,7 @@ local logger = require("atlas.core.logger")
 local function context(overrides)
 	local ctx = {
 		repo_root = "/home/dev/code/atlas.nvim",
-		repo_full_name = "emrearmagan/atlas.nvim",
+		repo_full_name = "owner/repo",
 		head_sha = "abcdef0123456789abcdef0123456789abcdef01",
 	}
 	for key, value in pairs(overrides or {}) do
@@ -59,7 +59,7 @@ describe("worktree", function()
 				{ { pr_id = 2 }, "pr-2" },
 			}) do
 				assert.equals(
-					worktree.cache_root() .. "/emrearmagan-atlas-nvim/" .. case[2],
+					worktree.cache_root() .. "/owner-repo/" .. case[2],
 					worktree.default_dir(context(case[1]))
 				)
 			end
@@ -106,7 +106,7 @@ describe("worktree", function()
 			})
 
 			assert.equals("/var/tmp/abcdef0", dir)
-			assert.equals("emrearmagan/atlas.nvim", seen.repo_full_name)
+			assert.equals("owner/repo", seen.repo_full_name)
 			assert.equals("/home/dev/code/atlas.nvim", seen.repo_root)
 			assert.equals(worktree.default_dir(context()), seen.default)
 		end)

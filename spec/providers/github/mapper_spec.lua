@@ -21,7 +21,7 @@ local function base_raw()
 			url = "https://github.com/owner/repo",
 			sshUrl = "git@github.com:owner/repo.git",
 		},
-		author = { login = "octocat", name = "Octo Cat", id = "1" },
+		author = { login = "alice", name = "Alice Example", id = "1" },
 	}
 end
 
@@ -73,9 +73,9 @@ end)
 describe("normalize_pr author.name", function()
 	it("uses author.name when it is a normal string", function()
 		local raw = base_raw()
-		raw.author.name = "Octo Cat"
+		raw.author.name = "Alice Example"
 		local pr = normalizer.to_pull_request(raw)
-		assert.are.equal("Octo Cat", pr.author.name)
+		assert.are.equal("Alice Example", pr.author.name)
 	end)
 
 	it("falls back to login when author.name is missing", function()
@@ -87,7 +87,7 @@ describe("normalize_pr author.name", function()
 			local raw = base_raw()
 			raw.author.name = case.value
 			local pr = normalizer.to_pull_request(raw)
-			assert.are.equal("octocat", pr.author.name, case.label)
+			assert.are.equal("alice", pr.author.name, case.label)
 		end
 	end)
 end)
@@ -114,7 +114,7 @@ end)
 
 describe("GitHub descriptions", function()
 	local groups = {
-		{ content = "HOORAY", viewerHasReacted = true, reactors = { totalCount = 1, nodes = { { login = "alice" } } } },
+		{ content = "HOORAY", viewerHasReacted = true, reactors = { totalCount = 1, nodes = { { login = "bob" } } } },
 	}
 
 	it("maps a pull request description as a comment with its reactions", function()
@@ -225,5 +225,28 @@ describe("review thread resolution", function()
 		local comment = normalizer.to_review_comment(review_comment({ id = "PRRC_1" }), resolved_thread(), "PRRC_1")
 
 		assert.is_nil(comment.resolved_by)
+	end)
+end)
+
+describe("GitHub comment author roles", function()
+	local function roles(association, author)
+		return issue_mapper.to_comment({ id = "IC_1", authorAssociation = association, author = author }, "alice").author_roles
+	end
+
+	it("maps the association and marks the issue author", function()
+		assert.same({ "Author", "Owner" }, roles("OWNER", { login = "alice" }))
+		assert.same({ "Member" }, roles("MEMBER", { login = "bob" }))
+		assert.same({ "First-time contributor" }, roles("FIRST_TIMER", { login = "bob" }))
+	end)
+
+	it("marks bots and skips associations GitHub does not show", function()
+		assert.same({ "Bot" }, roles("NONE", { __typename = "Bot", login = "ci-bot" }))
+		assert.is_nil(roles("MANNEQUIN", { login = "imported-user" }))
+		assert.is_nil(roles(nil, vim.NIL))
+	end)
+
+	it("maps review comments against the pull request author", function()
+		local node = { id = "RC_1", authorAssociation = "COLLABORATOR", author = { login = "alice" } }
+		assert.same({ "Author", "Collaborator" }, normalizer.to_review_comment(node, {}, nil, "alice").author_roles)
 	end)
 end)

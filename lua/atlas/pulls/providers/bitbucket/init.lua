@@ -6,7 +6,6 @@
 ---@field commits string|nil
 ---@field approve string|nil
 ---@field request_changes string|nil
----@field diff string|nil
 ---@field diffstat string|nil
 ---@field comments string|nil
 ---@field activity string|nil
@@ -150,7 +149,7 @@ return {
 			approve = reviews_api.approve,
 			request_changes = reviews_api.request_changes,
 			discard_review = reviews_api.discard_review,
-			-- set_file_reviewed = nil,
+			-- set_files_reviewed = nil,
 		},
 		pipelines = pipelines,
 		tasks = {

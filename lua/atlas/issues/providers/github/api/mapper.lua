@@ -275,8 +275,9 @@ function M.to_timeline_entry(node)
 end
 
 ---@param node any GraphQL `IssueComment`
+---@param author_login string|nil
 ---@return IssueComment|nil
-function M.to_comment(node)
+function M.to_comment(node, author_login)
 	node = json.safe_table(node)
 	if json.nilify(node.id) == nil then
 		return nil
@@ -285,6 +286,7 @@ function M.to_comment(node)
 		id = tostring(node.id),
 		url = json.safe_str(node.url) or "",
 		author = M.to_user(node.author),
+		author_roles = github_mapping.author_roles(node, author_login),
 		body = json.safe_str(node.body) or "",
 		created_at = json.safe_str(node.createdAt) or "",
 		reactions = github_mapping.graphql_reactions(node.reactionGroups),

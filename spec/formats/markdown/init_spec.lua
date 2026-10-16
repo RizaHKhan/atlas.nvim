@@ -367,7 +367,7 @@ describe("Markdown parsing", function()
 	end)
 
 	it("renders a linked image label and keeps the outer destination", function()
-		local url = "https://github.com/emrearmagan/atlas.nvim/actions/workflows/ci.yml"
+		local url = "https://github.com/owner/repo/actions/workflows/ci.yml"
 		local text = "é [![CI](" .. url .. "/badge.svg)](" .. url .. ")!"
 		assert.are.same({
 			lines = { "é 󰋩 CI!" },

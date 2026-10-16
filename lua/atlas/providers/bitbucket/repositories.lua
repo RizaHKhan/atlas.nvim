@@ -9,7 +9,6 @@ local config = require("atlas.config")
 local api_utils = require("atlas.core.utils")
 local request_scope = require("atlas.core.requests")
 local json = require("atlas.core.json")
-local as_table = api_utils.as_table
 local url_encode = api_utils.url_encode
 
 ---@class BitbucketRepository : AtlasRepository
@@ -23,12 +22,12 @@ local url_encode = api_utils.url_encode
 ---@param fallback_repo string|nil
 ---@return BitbucketRepository
 function M.to_repository(raw, fallback_workspace, fallback_repo)
-	raw = as_table(raw) or {}
-	local workspace_obj = as_table(raw.workspace) or {}
-	local links = as_table(raw.links) or {}
-	local html_link = as_table(links.html) or {}
-	local branches_link = as_table(links.branches) or {}
-	local tags_link = as_table(links.tags) or {}
+	raw = json.safe_table(raw)
+	local workspace_obj = json.safe_table(raw.workspace)
+	local links = json.safe_table(raw.links)
+	local html_link = json.safe_table(links.html)
+	local branches_link = json.safe_table(links.branches)
+	local tags_link = json.safe_table(links.tags)
 	local full_name = tostring(raw.full_name or "")
 	local full_owner, full_repo = full_name:match("^([^/]+)/(.+)$")
 	local owner = tostring(workspace_obj.slug or full_owner or fallback_workspace or "")
@@ -53,8 +52,8 @@ end
 ---@param fallback_workspace string|nil
 ---@return BitbucketRepositoryDetails
 local function to_repo_details(raw, fallback_workspace)
-	raw = as_table(raw) or {}
-	local mainbranch = as_table(raw.mainbranch) or {}
+	raw = json.safe_table(raw)
+	local mainbranch = json.safe_table(raw.mainbranch)
 	local repo = M.to_repository(raw, fallback_workspace)
 	---@cast repo BitbucketRepositoryDetails
 	repo.description = tostring(raw.description or "")
@@ -326,12 +325,12 @@ function M.fetch_branches(repo, opts, on_done)
 		---@type AtlasRepositoryBranch[]
 		local branches = {}
 		for _, item in ipairs(result.values or {}) do
-			local branch = as_table(item) or {}
-			local target = as_table(branch.target) or {}
-			local author = as_table(target.author) or {}
-			local user = as_table(author.user) or {}
-			local links = as_table(branch.links) or {}
-			local self_link = as_table(links.self) or {}
+			local branch = json.safe_table(item)
+			local target = json.safe_table(branch.target)
+			local author = json.safe_table(target.author)
+			local user = json.safe_table(author.user)
+			local links = json.safe_table(branch.links)
+			local self_link = json.safe_table(links.self)
 			local name = user.nickname or user.display_name or author.raw or ""
 			table.insert(branches, {
 				name = tostring(branch.name or ""),
@@ -370,14 +369,14 @@ function M.fetch_tags(repo, opts, on_done)
 		---@type AtlasRepositoryTag[]
 		local entries = {}
 		for _, item in ipairs(result.values or {}) do
-			local tag = as_table(item) or {}
-			local target = as_table(tag.target) or {}
-			local author = as_table(target.author) or {}
-			local user = as_table(author.user) or {}
-			local tagger = as_table(tag.tagger) or {}
-			local tagger_user = as_table(tagger.user) or {}
-			local links = as_table(tag.links) or {}
-			local html_link = as_table(links.html) or {}
+			local tag = json.safe_table(item)
+			local target = json.safe_table(tag.target)
+			local author = json.safe_table(target.author)
+			local user = json.safe_table(author.user)
+			local tagger = json.safe_table(tag.tagger)
+			local tagger_user = json.safe_table(tagger.user)
+			local links = json.safe_table(tag.links)
+			local html_link = json.safe_table(links.html)
 			local name = json.safe_str(tagger_user.nickname)
 				or json.safe_str(tagger_user.display_name)
 				or json.safe_str(tagger.raw)

@@ -40,6 +40,29 @@ function M.award_reactions(awards, viewer)
 	return reactions
 end
 
+---@param note any
+---@param author_username string|nil
+---@return string[]|nil
+function M.author_roles(note, author_username)
+	note = json.safe_table(note)
+	local author = json.safe_table(note.author)
+	local roles = {}
+	if author.username ~= nil and author.username == author_username then
+		table.insert(roles, "Author")
+	end
+	if author.bot == true then
+		table.insert(roles, "Bot")
+	end
+	local level = json.safe_str(note.maxAccessLevelOfAuthor)
+	if level then
+		table.insert(roles, level)
+	end
+	if note.authorIsContributor == true then
+		table.insert(roles, "Contributor")
+	end
+	return #roles > 0 and roles or nil
+end
+
 ---@param id any A notes GraphQL gid or REST id
 ---@return string|nil
 function M.note_id(id)

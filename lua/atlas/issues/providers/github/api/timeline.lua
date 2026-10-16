@@ -8,14 +8,14 @@ local TIMELINE_QUERY = [[
 query($owner:String!,$name:String!,$number:Int!,$endCursor:String){
   repository(owner:$owner,name:$name){
     issue(number:$number){
-      id url body createdAt author{...actor}
+      id url body createdAt authorAssociation author{...actor}
       reactionGroups{content viewerHasReacted reactors(first:10){totalCount nodes{...on User{login name} ...on Bot{login}}}}
       timelineItems(first:100,after:$endCursor){
         pageInfo{hasNextPage endCursor}
         nodes{
           __typename
           ...on IssueComment{
-            id url body createdAt author{...actor}
+            id url body createdAt authorAssociation author{...actor}
             reactionGroups{content viewerHasReacted reactors(first:10){totalCount nodes{...on User{login name} ...on Bot{login}}}}
           }
           ...on AssignedEvent{createdAt actor{...actor} assignee{...actor}}
@@ -53,7 +53,7 @@ query($owner:String!,$name:String!,$number:Int!,$endCursor:String){
     }
   }
 }
-fragment actor on Actor{login ...on User{name databaseId} ...on Bot{databaseId}}
+fragment actor on Actor{__typename login ...on User{name databaseId} ...on Bot{databaseId}}
 ]]
 
 ---@param issue Issue
@@ -97,11 +97,12 @@ function M.fetch_conversation(issue, opts, on_done)
 			return
 		end
 
+		local author_login = issue.reporter and issue.reporter.username
 		local items, events = {}, {}
 		for index, page in ipairs(result) do
 			local raw_issue = json.safe_table(json.safe_table(json.safe_table(page.data).repository).issue)
 			-- Every page repeats the issue itself, so its description is taken from the first one.
-			local description = index == 1 and normalizer.to_comment(raw_issue) or nil
+			local description = index == 1 and normalizer.to_comment(raw_issue, author_login) or nil
 			if description then
 				table.insert(items, {
 					id = "description",
@@ -112,7 +113,7 @@ function M.fetch_conversation(issue, opts, on_done)
 			end
 			for _, node in ipairs(json.safe_table(json.safe_table(raw_issue.timelineItems).nodes)) do
 				if node.__typename == "IssueComment" then
-					local comment = normalizer.to_comment(node)
+					local comment = normalizer.to_comment(node, author_login)
 					if comment then
 						table.insert(items, {
 							id = "comment:" .. comment.id,

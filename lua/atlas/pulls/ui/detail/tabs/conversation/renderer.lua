@@ -216,7 +216,7 @@ local function render_entry(entry, width, has_next, by_entity)
 		local thread = entry.thread
 		local root = thread.comment
 		if root.is_task then
-			local lines, spans, line_map = comment_threads.render_task_compact(thread, width, {
+			local lines, spans, line_map = comment_threads.render({ thread }, width, {
 				padding_x = PADDING_X,
 				content_prefix = has_next and "│ " or "  ",
 			})

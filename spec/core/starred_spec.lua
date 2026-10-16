@@ -90,11 +90,11 @@ describe("core.starred", function()
 	end)
 
 	it("adds, toggles, and clears items", function()
-		local pull = { id = 7, repo_full_name = "octo/repo", title = "Pull" }
-		local repo = { id = "octo/repo", name = "repo" }
+		local pull = { id = 7, repo_full_name = "owner/repo", title = "Pull" }
+		local repo = { id = "owner/repo", name = "repo" }
 
 		local item = assert(starred.add(pull, "github", repo))
-		assert.are.equal("github:github.com:pulls/octo/repo#7", item.ref)
+		assert.are.equal("github:github.com:pulls/owner/repo#7", item.ref)
 		assert.are.same({ item }, assert(starred.list()))
 
 		local is_starred = starred.toggle(pull, "github", repo)
@@ -110,11 +110,11 @@ describe("core.starred", function()
 	it("filters items by domain and provider", function()
 		assert(starred.add({ key = "GH-1" }, "github"))
 		assert(starred.add({ key = "JIRA-1" }, "jira"))
-		assert(starred.add({ id = 7, repo_full_name = "octo/repo" }, "github"))
+		assert(starred.add({ id = 7, repo_full_name = "owner/repo" }, "github"))
 
 		assert.are.same({ "github:github.com:issues/GH-1", "jira:issues/JIRA-1" }, refs(assert(starred.list("issues"))))
 		assert.are.same(
-			{ "github:github.com:issues/GH-1", "github:github.com:pulls/octo/repo#7" },
+			{ "github:github.com:issues/GH-1", "github:github.com:pulls/owner/repo#7" },
 			refs(assert(starred.list(nil, "github")))
 		)
 		assert.are.same({ "github:github.com:issues/GH-1" }, refs(assert(starred.list("issues", "github"))))
