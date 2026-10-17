@@ -36,6 +36,8 @@ function M.render(notifications, width)
 			type_icon, type_hl = icons.get("tasks")
 		elseif n.kind == "release" then
 			type_icon, type_hl = icons.get("tag")
+		elseif n.kind == "discussion" then
+			type_icon, type_hl = icons.get("conversation")
 		end
 
 		local prefix = type_icon ~= "" and PADDING .. type_icon .. " " or PADDING

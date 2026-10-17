@@ -3,7 +3,7 @@
 ---@field title string
 ---@field subtitle string|nil
 ---@field timestamp string|nil  -- ISO8601
----@field kind "pr"|"issue"|"checks"|"release"|nil
+---@field kind "pr"|"issue"|"checks"|"release"|"discussion"|nil
 ---@field unread boolean
 ---@field url string|nil
 

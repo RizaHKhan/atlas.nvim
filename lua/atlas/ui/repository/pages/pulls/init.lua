@@ -48,7 +48,6 @@ local function render(state)
 		return
 	end
 
-	local cursor = vim.api.nvim_win_get_cursor(state.win)
 	state.line_map = {}
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	local pulls = state.pulls
@@ -109,12 +108,6 @@ local function render(state)
 			hl_group = span.hl_group,
 		})
 	end
-
-	if #pulls == 0 then
-		return
-	end
-
-	vim.api.nvim_win_set_cursor(state.win, { math.min(cursor[1], #lines), cursor[2] })
 end
 
 ---@param state RepositoryPulls
@@ -312,10 +305,7 @@ function M.open(opts)
 	end
 
 	register(state, state.sidebar_buf, actions)
-	local panel_keys = resolver.resolve("ui.select") or {}
-	if not vim.tbl_contains(panel_keys, "p") then
-		panel_keys[#panel_keys + 1] = "p"
-	end
+	local panel_keys = vim.list_extend(resolver.resolve("ui.select") or {}, resolver.resolve("ui.toggle_panel") or {})
 
 	vim.list_extend(actions, {
 		{

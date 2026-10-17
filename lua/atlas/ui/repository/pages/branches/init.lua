@@ -61,8 +61,6 @@ local function render(state)
 		return
 	end
 
-	local cursor = vim.api.nvim_win_get_cursor(state.win)
-	local selection = state.line_map[cursor[1]]
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	state.line_map = {}
 	local branches = state.branches
@@ -100,15 +98,6 @@ local function render(state)
 	end
 
 	vim.bo[state.buf].modifiable = false
-	for row, entry in pairs(line_map) do
-		if selection and entry.branch.name == selection.branch.name then
-			local same_commit = selection.commit and entry.commit and selection.commit.hash == entry.commit.hash
-			if same_commit or (not selection.commit and not entry.commit) then
-				vim.api.nvim_win_set_cursor(state.win, { row, cursor[2] })
-				break
-			end
-		end
-	end
 end
 
 ---@param state RepositoryBranches
@@ -369,8 +358,15 @@ local function select_current(state)
 	if state.expanded == selection.branch.name then
 		clear_commits(state)
 		render(state)
-	else
-		load_history(state, selection.branch)
+		return
+	end
+
+	load_history(state, selection.branch)
+	for row, entry in pairs(state.line_map) do
+		if entry.branch.name == selection.branch.name and not entry.commit then
+			vim.api.nvim_win_set_cursor(state.win, { row, 0 })
+			break
+		end
 	end
 end
 

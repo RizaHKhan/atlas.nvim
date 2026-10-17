@@ -1,4 +1,5 @@
 local M = {}
+---@cast M AtlasNotificationsCapability
 
 local client = require("atlas.providers.github.client")
 
@@ -11,6 +12,7 @@ local SUBJECT_KIND = {
 	Issue = "issue",
 	CheckSuite = "checks",
 	Release = "release",
+	Discussion = "discussion",
 }
 
 ---@param subject_type string
@@ -169,6 +171,13 @@ function M.open(notification)
 		require("atlas.ui.repository").open(notification.repo, provider, {
 			page = "releases",
 			ctx = { release_id = notification.subject_url:match("/releases/(%d+)$") },
+		})
+	elseif notification.kind == "discussion" then
+		local provider = require("atlas.providers").load("github", "pulls")
+		---@cast provider PullsProvider
+		require("atlas.ui.repository").open(notification.repo, provider, {
+			page = "discussions",
+			ctx = { number = tonumber(notification.subject_url:match("/discussions/(%d+)$")) },
 		})
 	elseif notification.kind == "pr" or notification.kind == "issue" then
 		if notification.url == nil then

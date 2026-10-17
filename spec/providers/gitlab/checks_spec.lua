@@ -55,7 +55,8 @@ describe("GitLab merge checks", function()
 		})
 
 		local result
-		checks.fetch({ id = 7, repo_full_name = "group/project", state = "open" }, nil, function(value)
+		local pr = { id = 7, repo_full_name = "group/project", state = "open" }
+		checks.fetch(pr, nil, function(value)
 			result = value
 		end)
 

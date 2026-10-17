@@ -9,9 +9,9 @@ describe("providers.resolve", function()
 		config.options = {
 			providers = {
 				github = { hostname = "github.com" },
-				gitlab = { base_url = "https://gitlab.example.com" },
-				bitbucket = {},
-				jira = { base_url = "https://jira.example.com" },
+				gitlab = { base_url = "https://gitlab.example.com", token = "token" },
+				bitbucket = { user = "user", token = "token" },
+				jira = { base_url = "https://jira.example.com", token = "token" },
 			},
 			pulls = {
 				github = {},

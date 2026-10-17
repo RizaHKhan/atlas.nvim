@@ -15,8 +15,8 @@
 
 ---@class AtlasReactionsCapability
 ---@field options AtlasReactionOption[]
----@field add fun(target: Issue|PullRequest, comment: IssueComment|PullsComment, key: string, on_done: fun(ok: boolean, err: string|nil)): { cancel: fun() }|nil
----@field remove (fun(target: Issue|PullRequest, comment: IssueComment|PullsComment, key: string, on_done: fun(ok: boolean, err: string|nil)): { cancel: fun() }|nil)|nil
+---@field add fun(target: Issue|PullRequest|GitHubDiscussionDetails, comment: IssueComment|PullsComment|GitHubDiscussionComment, key: string, on_done: fun(ok: boolean, err: string|nil)): { cancel: fun() }|nil
+---@field remove (fun(target: Issue|PullRequest|GitHubDiscussionDetails, comment: IssueComment|PullsComment|GitHubDiscussionComment, key: string, on_done: fun(ok: boolean, err: string|nil)): { cancel: fun() }|nil)|nil
 
 ---@class AtlasProviderCapabilities
 ---@field repository AtlasRepositoryCapability|nil

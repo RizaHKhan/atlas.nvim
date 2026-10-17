@@ -116,4 +116,14 @@ function M.connection_nodes(value)
 	return value
 end
 
+---@param raw any
+---@return AtlasUser|nil
+function M.to_user(raw)
+	local user = M.identity(raw)
+	if not user or user.login == "" then
+		return nil
+	end
+	return { id = user.id, name = user.name, username = user.login }
+end
+
 return M

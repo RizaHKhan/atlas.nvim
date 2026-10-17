@@ -1,7 +1,7 @@
 local M = {}
 
 local json = require("atlas.core.json")
-local repositories_api = require("atlas.providers.bitbucket.repositories")
+local bitbucket_mapper = require("atlas.providers.bitbucket.mapper")
 
 ---@param update table   raw bitbucket update payload
 ---@return string
@@ -169,7 +169,7 @@ function M.to_pull_request(raw, workspace, repo)
 	local destination = json.safe_table(raw.destination)
 	local source_repository = json.safe_table(source.repository)
 	local destination_repository = json.safe_table(destination.repository)
-	local repository = repositories_api.to_repository(destination_repository, workspace, repo)
+	local repository = bitbucket_mapper.to_repository(destination_repository, workspace, repo)
 	local source_https_url, source_ssh_url = clone_urls(source_repository)
 	local destination_https_url, destination_ssh_url = clone_urls(destination_repository)
 	local repo_full_name = repository.full_name

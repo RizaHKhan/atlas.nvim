@@ -20,7 +20,6 @@ local utils = require("atlas.ui.shared.utils")
 ---@field statusline AtlasStatusline
 ---@field branch string|nil
 ---@field runs PullsPipeline[]|string
----@field selected_id string|nil
 ---@field line_map table<integer, PullsPipeline>
 ---@field requests AtlasRequestScope
 ---@field spinner SpinnerInstance
@@ -43,8 +42,7 @@ local function current(state)
 end
 
 ---@param state RepositoryBuilds
----@param selected_id string|nil
-local function render(state, selected_id)
+local function render(state)
 	if states[state.buf] ~= state or not utils.window.valid(state.win) or not utils.buffer.valid(state.buf) then
 		return
 	end
@@ -85,20 +83,10 @@ local function render(state, selected_id)
 	end
 
 	vim.bo[state.buf].modifiable = false
-	if selected_id then
-		for row = 1, #lines do
-			if line_map[row] and line_map[row].id == selected_id then
-				vim.api.nvim_win_set_cursor(state.win, { row, 0 })
-				return
-			end
-		end
-	end
 end
 
 ---@param state RepositoryBuilds
 local function load(state)
-	local selected = current(state)
-	state.selected_id = selected and selected.id or state.selected_id
 	state.requests.cancel()
 	state.requests = requests.new()
 	state.spinner:stop()
@@ -129,21 +117,10 @@ local function load(state)
 		state.spinner:stop()
 		state.statusline:clear_notice()
 		state.runs = runs or err or "Unable to load builds"
-		local selected_run
-		if runs then
-			local selected_id = state.selected_id
-			selected_run = runs[1]
-			for _, run in ipairs(runs) do
-				if run.id == selected_id then
-					selected_run = run
-					break
-				end
-			end
-
-			state.selected_id = selected_run and selected_run.id
+		render(state)
+		if runs and #runs > 0 and utils.window.valid(state.win) then
+			vim.api.nvim_win_set_cursor(state.win, { 3, 0 })
 		end
-
-		render(state, state.selected_id)
 	end)
 end
 
@@ -179,8 +156,6 @@ local function change_branch(state)
 			end
 
 			state.branch = branch.name
-			state.selected_id = nil
-			state.line_map = {}
 			load(state)
 		end,
 	})
@@ -295,8 +270,7 @@ function M.open(opts)
 	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
 		group = state.group,
 		callback = function()
-			local run = current(state)
-			render(state, run and run.id)
+			render(state)
 		end,
 	})
 

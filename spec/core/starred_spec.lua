@@ -35,7 +35,7 @@ describe("core.starred", function()
 				return value:match("^(.*)/")
 			end,
 		}
-		vim.uv = {
+		local uv = {
 			hrtime = function()
 				return 1
 			end,
@@ -44,6 +44,7 @@ describe("core.starred", function()
 				return true
 			end,
 		}
+		vim.uv = uv
 		vim.fn.stdpath = function()
 			return "/atlas-starred-spec"
 		end

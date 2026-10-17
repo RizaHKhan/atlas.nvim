@@ -181,7 +181,7 @@ function M.chips(_issue, details, loading)
 	for _, label in ipairs(details and details.labels or {}) do
 		local name = label.name
 		if name ~= "" then
-			table.insert(chips, { label = name, hl = highlights.chip(label.color) })
+			table.insert(chips, { label = name, hl = highlights.label(label.color) })
 		end
 	end
 

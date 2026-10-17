@@ -6,6 +6,7 @@
 ---| "open_project"
 
 local M = {}
+---@cast M AtlasActionsCapability
 
 local actions = require("atlas.issues.actions")
 local utils = require("atlas.issues.actions.utils")

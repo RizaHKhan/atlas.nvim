@@ -6,6 +6,7 @@
 ---| "search_jql"
 
 local M = {}
+---@cast M AtlasActionsCapability
 
 local actions = require("atlas.issues.actions")
 local icons = require("atlas.ui.shared.icons")

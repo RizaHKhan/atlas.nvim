@@ -1,4 +1,5 @@
 local M = {}
+---@cast M AtlasNotificationsCapability
 
 local client = require("atlas.providers.gitlab.client")
 

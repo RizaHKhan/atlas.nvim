@@ -134,4 +134,25 @@ describe("GitHub notifications", function()
 			opened
 		)
 	end)
+
+	it("opens discussions on the repository discussions page", function()
+		local opened
+		stub("atlas.providers", {
+			load = function()
+				return {}
+			end,
+		})
+		stub("atlas.ui.repository", {
+			open = function(repo, _, opts)
+				opened = { repo = repo, opts = opts }
+			end,
+		})
+
+		local notifications = fetch({
+			raw("Discussion", "https://api.github.com/repos/octo/repo/discussions/40"),
+		})
+
+		assert.is_true(require(MODULE).open(notifications[1]))
+		assert.are.same({ repo = "octo/repo", opts = { page = "discussions", ctx = { number = 40 } } }, opened)
+	end)
 end)

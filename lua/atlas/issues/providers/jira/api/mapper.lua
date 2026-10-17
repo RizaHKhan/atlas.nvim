@@ -5,12 +5,12 @@ local highlights = require("atlas.ui.highlights")
 local icons = require("atlas.ui.shared.icons")
 local helper = require("atlas.issues.ui.presentation")
 local json = require("atlas.core.json")
-local users = require("atlas.providers.jira.users")
+local jira_mapper = require("atlas.providers.jira.mapper")
 
 ---@param raw any
 ---@return AtlasUser|nil
 local function normalize_issue_user(raw)
-	local user = users.to_user(raw)
+	local user = jira_mapper.to_user(raw)
 	if user and user.id ~= "" and user.name ~= "" then
 		return user
 	end

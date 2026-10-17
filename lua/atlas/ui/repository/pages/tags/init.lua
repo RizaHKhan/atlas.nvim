@@ -57,8 +57,6 @@ local function render(state)
 		return
 	end
 
-	local cursor = vim.api.nvim_win_get_cursor(state.win)
-	local selection = state.line_map[cursor[1]]
 	vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
 	state.line_map = {}
 	local tags = state.tags
@@ -96,23 +94,6 @@ local function render(state)
 	end
 
 	vim.bo[state.buf].modifiable = false
-	local selected_row
-	for row, entry in pairs(line_map) do
-		if selection and entry.tag.name == selection.tag.name then
-			if not entry.detail then
-				selected_row = selected_row or row
-			end
-
-			if selection.detail == entry.detail then
-				selected_row = row
-				break
-			end
-		end
-	end
-
-	if selected_row then
-		vim.api.nvim_win_set_cursor(state.win, { selected_row, cursor[2] })
-	end
 end
 
 ---@param state RepositoryTags
@@ -277,6 +258,12 @@ function M.open(opts)
 			if tag then
 				state.expanded = state.expanded ~= tag.name and tag.name or nil
 				render(state)
+				for row, entry in pairs(state.line_map) do
+					if entry.tag.name == tag.name and not entry.detail then
+						vim.api.nvim_win_set_cursor(state.win, { row, 0 })
+						break
+					end
+				end
 			end
 		end,
 		details = function()

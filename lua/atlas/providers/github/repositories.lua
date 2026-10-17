@@ -1,4 +1,5 @@
 local M = {}
+---@cast M AtlasRepositoryCapability
 
 local request_scope = require("atlas.core.requests")
 local cli = require("atlas.providers.github.client")
