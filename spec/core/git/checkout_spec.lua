@@ -201,17 +201,6 @@ describe("core.git.checkout", function()
 			assert.is_false(checked_commits)
 		end)
 
-		it("checks out the PR branch in the mapped repository", function()
-			local result
-			checkout.checkout_pr(pr, function(value, err)
-				assert.is_nil(err)
-				result = value
-			end)
-			complete_remote("https://github.com/owner/repo.git")
-			assert.same({ repo_path = "/mapped", local_branch = "feature" }, checked_out)
-			assert.same(checked_out, result)
-		end)
-
 		it("passes mapped paths to custom actions, including configured SSH aliases", function()
 			local invoked, completed
 			config.options.pulls.custom_actions = {

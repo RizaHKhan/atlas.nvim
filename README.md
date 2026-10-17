@@ -362,7 +362,7 @@ Save searches as bookmarks, or press `*` to star a pull request or issue. Both a
 - `:Atlas create issue [provider|.]` - Create an issue; `.` uses the current repository's provider
 - `:Atlas search [provider|.]` - Search configured pull-request and issue providers; `.` uses the current repository's provider
 - `:Atlas open [target|.]` - Open a pull request or issue by URL, Jira key, or number; `.` opens the current branch's pull request
-- `:Atlas browse [repository URL|.] [page]` - Open the repository browser, e.g. `:Atlas browse . branches`
+- `:Atlas browse [repository URL|.|page] [page]` - Open the repository browser; `.` uses the current repository, a page name alone picks a repository first, and a URL to a repository page or item opens that page, e.g. `:Atlas browse . branches`, `:Atlas browse issues` or `:Atlas browse https://github.com/owner/repo/discussions`
 - `:Atlas notes [target|.]` - Inspect notes; `.` shows the current repository's notes
 - `:Atlas clear [cache|notes|stars]` - Clear all Atlas data or only cached data and cloned repositories, notes, or starred items
 - `:Atlas logs` - Toggle Atlas logs

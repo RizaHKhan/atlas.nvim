@@ -28,20 +28,15 @@ local function render_header(repo, width)
 
 	local stats = ""
 	for _, stat in ipairs({
-		{ label = "stars", count = repo.stars, icon = { icons.get("star") } },
-		{ label = "forks", count = repo.forks, icon = { icons.get("fork") } },
-		{ label = "watchers", count = repo.watchers, icon = { icons.get("watching") } },
+		{ label = "stars", count = repo.stars, icon = "star" },
+		{ label = "forks", count = repo.forks, icon = "fork" },
+		{ label = "watchers", count = repo.watchers, icon = "watching" },
 	}) do
 		if stat.count ~= nil then
+			local icon, hl = icons.get(stat.icon)
 			stats = stats .. (stats ~= "" and "   " or "")
-			table.insert(spans, {
-				line = #lines,
-				start_col = #stats,
-				end_col = #stats + #stat.icon[1],
-				hl_group = stat.icon[2],
-			})
-
-			stats = stats .. stat.icon[1] .. " " .. stat.count .. " " .. stat.label
+			table.insert(spans, { line = #lines, start_col = #stats, end_col = #stats + #icon, hl_group = hl })
+			stats = stats .. icon .. " " .. stat.count .. " " .. stat.label
 		end
 	end
 

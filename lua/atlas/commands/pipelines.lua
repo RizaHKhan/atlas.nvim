@@ -60,6 +60,7 @@ local function open_target(target, branch)
 	end
 
 	if branch or target.entity == "pipeline" then
+		---@type string|PullsPipeline|nil
 		local pipeline_target = branch
 		if target.entity == "pipeline" then
 			local id = tostring(assert(target.id))

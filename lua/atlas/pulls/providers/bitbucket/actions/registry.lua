@@ -24,11 +24,12 @@ end
 ---@param ctx AtlasPullActionContext
 ---@return boolean, string|nil
 local function approve_available(ctx)
-	if ctx.pr == nil then
+	local pr = ctx.pr
+	if pr == nil then
 		return false, "No PR selected"
 	end
-	---@cast ctx.pr BitbucketPullRequest
-	if (ctx.pr.links.approve or "") == "" then
+	---@cast pr BitbucketPullRequest
+	if (pr.links.approve or "") == "" then
 		return false, "No approve URL available"
 	end
 	return true, nil
@@ -37,11 +38,12 @@ end
 ---@param ctx AtlasPullActionContext
 ---@return boolean, string|nil
 local function merge_available(ctx)
-	if ctx.pr == nil then
+	local pr = ctx.pr
+	if pr == nil then
 		return false, "No PR selected"
 	end
-	---@cast ctx.pr BitbucketPullRequest
-	if (ctx.pr.links.merge or "") == "" then
+	---@cast pr BitbucketPullRequest
+	if (pr.links.merge or "") == "" then
 		return false, "No merge URL available"
 	end
 	return true, nil
@@ -50,11 +52,12 @@ end
 ---@param ctx AtlasPullActionContext
 ---@return boolean, string|nil
 local function decline_available(ctx)
-	if not actions.decline.is_available(ctx) or ctx.pr == nil then
+	local pr = ctx.pr
+	if not actions.decline.is_available(ctx) or pr == nil then
 		return false, "PR is not open"
 	end
-	---@cast ctx.pr BitbucketPullRequest
-	if (ctx.pr.links.decline or "") == "" then
+	---@cast pr BitbucketPullRequest
+	if (pr.links.decline or "") == "" then
 		return false, "No decline URL available"
 	end
 	return true, nil
@@ -63,11 +66,12 @@ end
 ---@param ctx AtlasPullActionContext
 ---@return boolean, string|nil
 local function request_changes_available(ctx)
-	if ctx.pr == nil then
+	local pr = ctx.pr
+	if pr == nil then
 		return false, "No PR selected"
 	end
-	---@cast ctx.pr BitbucketPullRequest
-	if (ctx.pr.links.request_changes or "") == "" then
+	---@cast pr BitbucketPullRequest
+	if (pr.links.request_changes or "") == "" then
 		return false, "No request changes URL available"
 	end
 	return true, nil
@@ -202,7 +206,7 @@ register({
 	icon = icons.get("overview"),
 	run = function(ctx, done)
 		select_repository(ctx, function(repo)
-			require("atlas.ui.repository").open(repo.full_name, ctx.provider)
+			require("atlas.ui.repository").open(repo.full_name, ctx.provider, { page = ctx.page })
 			done(nil, nil)
 		end, done)
 	end,

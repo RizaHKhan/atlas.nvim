@@ -71,8 +71,8 @@ local function limit_preview(preview, max_lines)
 	end
 
 	local first, last = 1, #preview.lines
-	if preview.selection then
-		local selected = preview.selection
+	local selected = preview.selection
+	if selected then
 		local count = selected.last - selected.first + 1
 		local context = math.max(0, math.min(2, math.floor((max_lines - count) / 2)))
 		first = math.max(1, selected.first - context)

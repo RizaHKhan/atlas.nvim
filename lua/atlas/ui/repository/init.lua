@@ -2,11 +2,18 @@ local resolver = require("atlas.core.keymaps")
 local notify = require("atlas.core.notify")
 local request_scope = require("atlas.core.requests")
 local loading = require("atlas.ui.loading")
-local pages = require("atlas.ui.repository.pages")
 local keymaps = require("atlas.ui.repository.keymaps")
 local sidebar = require("atlas.ui.repository.sidebar")
 local statusline = require("atlas.ui.statusline")
 local utils = require("atlas.ui.shared.utils")
+
+---@class RepositoryPage
+---@field key string
+---@field label string
+---@field icon string
+---@field open fun(opts: { buf: integer, win: integer, sidebar_buf: integer, repo: AtlasRepositoryDetails, provider: PullsProvider|IssuesProvider, statusline: AtlasStatusline, ctx: table })
+---@field render fun(buf: integer) Redraws the page, e.g. after the content window was resized
+---@field close fun(buf: integer) Runs before the content buffer is wiped and the window options are reset for the next page
 
 ---@class RepositoryBrowser
 ---@field tab integer
@@ -174,6 +181,16 @@ end
 local function setup_events(session)
 	session.group = vim.api.nvim_create_augroup("AtlasRepository" .. session.tab, { clear = true })
 
+	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
+		group = session.group,
+		callback = function(event)
+			local resized = event.event == "VimResized" or vim.tbl_contains(vim.v.event.windows, session.content.win)
+			if session.page and resized then
+				session.page.render(session.content.buf)
+			end
+		end,
+	})
+
 	vim.api.nvim_create_autocmd("WinClosed", {
 		group = session.group,
 		pattern = { tostring(session.sidebar.win), tostring(session.content.win) },
@@ -187,16 +204,17 @@ end
 
 ---@param repo AtlasRepositoryDetails
 ---@param provider PullsProvider|IssuesProvider
+---@param pages RepositoryPage[]
 ---@param page_key string|nil
 ---@param ctx table|nil
-local function show(repo, provider, page_key, ctx)
+local function show(repo, provider, pages, page_key, ctx)
 	vim.cmd("tabnew")
 	local session = {
 		tab = vim.api.nvim_get_current_tabpage(),
 		closed = false,
 		repo = repo,
 		provider = provider,
-		sidebar = { pages = pages.get(provider), selected = 1 },
+		sidebar = { pages = pages, selected = 1 },
 		content = {},
 		statusline = statusline.new({ help_key = (resolver.resolve("ui.help") or {})[1] }),
 	}
@@ -224,7 +242,8 @@ end
 ---@param opts { page?: string, ctx?: table }|nil
 function M.open(repo_full_name, provider, opts)
 	local repository = provider.capabilities.repository
-	if not repository then
+	local ui = provider.capabilities.ui and provider.capabilities.ui.repository
+	if not repository or not ui then
 		notify.error("Repository details are not available")
 		return
 	end
@@ -247,7 +266,7 @@ function M.open(repo_full_name, provider, opts)
 			return
 		end
 
-		show(details, provider, opts and opts.page, opts and opts.ctx)
+		show(details, provider, ui.pages, opts and opts.page, opts and opts.ctx)
 		view:finish()
 	end)
 end

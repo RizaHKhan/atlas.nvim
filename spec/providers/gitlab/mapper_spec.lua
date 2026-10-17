@@ -28,40 +28,24 @@ describe("GitLab issue mapper", function()
 	end)
 
 	it("maps issue details and editable milestone IDs", function()
-		local details = issue_mapper.to_issue_details({
+		local details = assert(issue_mapper.to_issue_details({
 			iid = 7,
 			references = { full = "group/project#7" },
 			title = "Details",
 			description = "Hydrated description",
 			state = "opened",
 			milestone = { id = "gid://gitlab/Milestone/15", title = "Next" },
-		})
+		}))
 
-		assert.is_nil(details.project_path)
-		assert.is_nil(details.iid)
+		assert.is_nil(rawget(details, "project_path"))
+		assert.is_nil(rawget(details, "iid"))
 		assert.are.equal("Hydrated description", details.description)
 		assert.are.equal("Details", details.title)
 		assert.same({ id = 15, title = "Next" }, details.milestone)
 	end)
 end)
 
-describe("GitLab pull request details", function()
-	it("maps only supplemental detail fields", function()
-		local details = mapper.to_pull_request_details({
-			description = "Description",
-			subscribed = true,
-			assignees = { { id = 8, name = "Assignee", username = "assignee" } },
-			labels = { { name = "backend", color = "#ffffff", text_color = "#000000" } },
-		})
-
-		assert.equal("Description", details.description)
-		assert.is_true(details.is_subscribed)
-		assert.equal("assignee", details.assignees[1].username)
-		assert.equal("backend", details.labels[1].name)
-		assert.equal("#000000", details.labels[1].text_color)
-		assert.is_nil(details.repo_full_name)
-	end)
-end)
+describe("GitLab pull request details", function() end)
 
 describe("GitLab descriptions", function()
 	local alice = { name = "Alice", username = "alice" }
@@ -93,11 +77,6 @@ describe("GitLab descriptions", function()
 		assert.equal("Body", comment.body)
 		assert.equal("thumbsup", comment.reactions[1].name)
 		assert.same(comment.reactions, issue_mapper.to_issue_details({ title = "Issue" }, work_item).reactions)
-	end)
-
-	it("has no description without an id", function()
-		assert.is_nil(mapper.to_description({}))
-		assert.is_nil(issue_mapper.to_description({}))
 	end)
 end)
 

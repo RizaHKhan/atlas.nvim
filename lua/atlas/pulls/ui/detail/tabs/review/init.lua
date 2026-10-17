@@ -189,6 +189,7 @@ local function run_comment_action(action, pr, comment, refresh)
 		if not result or err then
 			return
 		end
+		---@cast result PullsActionResult
 		if result.changed_pr then
 			if on_update then
 				on_update(pr, result)

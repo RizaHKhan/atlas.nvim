@@ -223,25 +223,25 @@ local function create()
 	state.listed = config.options.ui.listed_buffer == true
 	vim.api.nvim_set_option_value("buflisted", state.listed, { buf = state.buf })
 	vim.cmd("tabnew")
-	state.tab = vim.api.nvim_get_current_tabpage()
-	state.win = vim.api.nvim_get_current_win()
+	local tab = vim.api.nvim_get_current_tabpage()
+	local win = vim.api.nvim_get_current_win()
+	state.tab = tab
+	state.win = win
 	local placeholder = vim.api.nvim_get_current_buf()
 	vim.api.nvim_win_set_buf(state.win, state.buf)
 	if placeholder ~= state.buf and utils.buffer.valid(placeholder) then
 		pcall(vim.api.nvim_buf_delete, placeholder, { force = true })
 	end
 
-	state.session_id = events.new_id("ui")
-	state.group = vim.api.nvim_create_augroup("AtlasPullsDashboard" .. state.session_id, { clear = true })
+	local session_id = events.new_id("ui")
+	state.session_id = session_id
+	state.group = vim.api.nvim_create_augroup("AtlasPullsDashboard" .. session_id, { clear = true })
 	state.closing = false
 	if state.listed then
-		setup_listed_buffer(state.session_id)
+		setup_listed_buffer(session_id)
 	end
 	configure_window()
 
-	local session_id = state.session_id
-	local tab = state.tab
-	local win = state.win
 	vim.api.nvim_create_autocmd("WinClosed", {
 		group = state.group,
 		pattern = tostring(win),

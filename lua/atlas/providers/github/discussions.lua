@@ -28,6 +28,7 @@ local json = require("atlas.core.json")
 ---@class GitHubDiscussionComment
 ---@field id string
 ---@field author string|nil
+---@field author_roles string[]|nil
 ---@field body string
 ---@field created_at string
 ---@field upvotes integer
@@ -45,20 +46,19 @@ local json = require("atlas.core.json")
 ---@class GitHubDiscussionPage
 ---@field items GitHubDiscussion[]
 ---@field categories GitHubDiscussionCategory[]
----@field counts { open: integer, closed: integer }
 ---@field next_cursor string|nil
 
 local DISCUSSIONS_QUERY = [[
-query($owner: String!, $repo: String!, $states: [DiscussionState!], $categoryId: ID, $endCursor: String) {
+query($owner: String!, $repo: String!, $search: String!, $endCursor: String) {
   repository(owner: $owner, name: $repo) {
     hasDiscussionsEnabled
     discussionCategories(first: 25) { nodes { id name emoji isAnswerable } }
-    open: discussions(states: OPEN, categoryId: $categoryId) { totalCount }
-    closed: discussions(states: CLOSED, categoryId: $categoryId) { totalCount }
     pinnedDiscussions(first: 10) { nodes { discussion { number } } }
-    discussions(first: 50, after: $endCursor, states: $states, categoryId: $categoryId, orderBy: { field: UPDATED_AT, direction: DESC }) {
-      pageInfo { hasNextPage endCursor }
-      nodes {
+  }
+  search(type: DISCUSSION, query: $search, first: 50, after: $endCursor) {
+    pageInfo { hasNextPage endCursor }
+    nodes {
+      ... on Discussion {
         number title url createdAt closed isAnswered upvoteCount
         author { login }
         category { id name emoji isAnswerable }
@@ -75,7 +75,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     discussion(number: $number) {
       id number title url body createdAt closed isAnswered upvoteCount viewerHasUpvoted viewerSubscription
-      author { login }
+      authorAssociation author { __typename login }
       category { id name emoji isAnswerable }
       labels(first: 10) { nodes { name color } }
       reactionGroups { content viewerHasReacted reactors { totalCount } }
@@ -83,12 +83,12 @@ query($owner: String!, $repo: String!, $number: Int!) {
         totalCount
         nodes {
           id body createdAt deletedAt isAnswer upvoteCount viewerHasUpvoted
-          author { login }
+          authorAssociation author { __typename login }
           reactionGroups { content viewerHasReacted reactors { totalCount } }
           replies(first: 100) {
             nodes {
               id body createdAt upvoteCount viewerHasUpvoted
-              author { login }
+              authorAssociation author { __typename login }
               reactionGroups { content viewerHasReacted reactors { totalCount } }
             }
           }
@@ -135,16 +135,18 @@ local function to_discussion(raw)
 end
 
 ---@param raw table
+---@param author_login string|nil
 ---@return GitHubDiscussionComment
-local function to_comment(raw)
+local function to_comment(raw, author_login)
 	local replies = {}
 	for _, reply in ipairs(json.safe_table(json.safe_table(raw.replies).nodes)) do
-		table.insert(replies, to_comment(reply))
+		table.insert(replies, to_comment(reply, author_login))
 	end
 
 	return {
 		id = json.safe_str(raw.id) or "",
 		author = json.safe_str(json.safe_table(raw.author).login),
+		author_roles = mapper.author_roles(raw, author_login),
 		body = json.safe_str(raw.body) or "",
 		created_at = json.safe_str(raw.createdAt) or "",
 		upvotes = tonumber(raw.upvoteCount) or 0,
@@ -157,7 +159,7 @@ local function to_comment(raw)
 end
 
 ---@param repo AtlasRepository
----@param opts { state: "open"|"closed", category?: string, cursor?: string }
+---@param opts { query: string, cursor?: string } `query` is a GitHub discussion search, e.g. `repo:owner/name is:open`
 ---@param on_done fun(page: GitHubDiscussionPage|nil, err: string|nil)
 ---@return { cancel: fun() }|nil
 function M.fetch(repo, opts, on_done)
@@ -177,12 +179,8 @@ function M.fetch(repo, opts, on_done)
 		"-f",
 		"repo=" .. name,
 		"-f",
-		"states[]=" .. opts.state:upper(),
+		"search=" .. opts.query,
 	}
-	if opts.category then
-		vim.list_extend(args, { "-f", "categoryId=" .. opts.category })
-	end
-
 	if opts.cursor then
 		vim.list_extend(args, { "-f", "endCursor=" .. opts.cursor })
 	end
@@ -193,7 +191,8 @@ function M.fetch(repo, opts, on_done)
 			return
 		end
 
-		local repository = json.nilify(json.safe_table(result and result.data).repository)
+		local data = json.safe_table(result and result.data)
+		local repository = json.nilify(data.repository)
 		if not repository then
 			on_done(nil, "Repository not found")
 			return
@@ -212,10 +211,10 @@ function M.fetch(repo, opts, on_done)
 			end
 		end
 
-		local discussions = json.safe_table(repository.discussions)
-		local page_info = json.safe_table(discussions.pageInfo)
+		local search = json.safe_table(data.search)
+		local page_info = json.safe_table(search.pageInfo)
 		local items = {}
-		for _, raw in ipairs(json.safe_table(discussions.nodes)) do
+		for _, raw in ipairs(json.safe_table(search.nodes)) do
 			local item = to_discussion(raw)
 			item.pinned = pinned[item.number] == true
 			table.insert(items, item)
@@ -229,10 +228,6 @@ function M.fetch(repo, opts, on_done)
 		on_done({
 			items = items,
 			categories = categories,
-			counts = {
-				open = tonumber(json.safe_table(repository.open).totalCount) or 0,
-				closed = tonumber(json.safe_table(repository.closed).totalCount) or 0,
-			},
 			next_cursor = page_info.hasNextPage == true and json.safe_str(page_info.endCursor) or nil,
 		}, nil)
 	end, { action = "Fetch discussions", repo = repo.full_name })
@@ -275,16 +270,15 @@ function M.fetch_discussion(repo, number, on_done)
 			return
 		end
 
-		local thread = {}
-		for _, raw in ipairs(json.safe_table(json.safe_table(discussion.comments).nodes)) do
-			table.insert(thread, to_comment(raw))
-		end
-
 		local details = to_discussion(discussion)
 		---@cast details GitHubDiscussionDetails
-		details.description = to_comment(discussion)
+		details.description = to_comment(discussion, details.author)
 		details.subscribed = discussion.viewerSubscription == "SUBSCRIBED"
-		details.thread = thread
+		details.thread = {}
+		for _, raw in ipairs(json.safe_table(json.safe_table(discussion.comments).nodes)) do
+			table.insert(details.thread, to_comment(raw, details.author))
+		end
+
 		on_done(details, nil)
 	end, { action = "Fetch discussion", repo = repo.full_name })
 end
@@ -300,7 +294,7 @@ mutation($discussionId: ID!, $body: String!, $replyToId: ID) {
   addDiscussionComment(input: { discussionId: $discussionId, body: $body, replyToId: $replyToId }) {
     comment {
       id body createdAt isAnswer upvoteCount viewerHasUpvoted
-      author { login }
+      authorAssociation author { __typename login }
       reactionGroups { content viewerHasReacted reactors { totalCount } }
     }
   }
@@ -333,7 +327,7 @@ mutation($discussionId: ID!, $body: String!, $replyToId: ID) {
 			return
 		end
 
-		on_done(to_comment(comment), nil)
+		on_done(to_comment(comment, discussion.author), nil)
 	end, { action = "Add discussion comment", number = discussion.number })
 end
 

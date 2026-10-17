@@ -68,7 +68,7 @@
 ---@field review PullsReview|nil
 
 ---@class PullsCommentsCapability
----@field fetch_conversation (fun(pr: PullRequest, opts: { force_refresh: boolean|nil }|nil, on_done: fun(items: PullsConversationItem[]|nil, err: string|nil)): { cancel: fun() }|nil)|nil
+---@field fetch_conversation (fun(pr: PullRequest, opts: { force_refresh: boolean|nil }|nil, on_done: fun(conversation: PullsConversation|nil, err: string|nil)): { cancel: fun() }|nil)|nil
 ---@field add_comment (fun(pr: PullRequest, content: string, opts: PullsAddCommentOpts|nil, on_done: fun(comment: PullsComment|nil, err: string|nil)): { cancel: fun() }|nil)|nil
 ---@field edit_comment (fun(pr: PullRequest, comment: PullsComment, content: string, on_done: fun(comment: PullsComment|nil, err: string|nil)): { cancel: fun() }|nil)|nil
 ---@field delete_comment (fun(pr: PullRequest, target: PullsComment, on_done: fun(ok: boolean, err: string|nil)): { cancel: fun() }|nil)|nil
@@ -94,4 +94,4 @@
 
 ---@class PullsUICapability
 ---@field detail PullsProviderDetail|nil
----@field repository { pages: fun(pages: table<string, RepositoryPage>): RepositoryPage[] }|nil
+---@field repository { pages: RepositoryPage[] }|nil

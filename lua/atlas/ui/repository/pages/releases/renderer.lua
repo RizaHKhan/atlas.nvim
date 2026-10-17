@@ -16,7 +16,7 @@ end
 
 ---@param release AtlasRepositoryReleaseDetails
 ---@param width integer
----@return string[], table<integer, RepositoryReleaseSelection>, AtlasUIHighlight[]
+---@return string[], AtlasUIHighlight[], table<integer, RepositoryReleaseSelection>
 function M.render(release, width)
 	local lines, line_map, spans = {}, {}, {}
 	local name = single_line(release.name)
@@ -103,7 +103,7 @@ function M.render(release, width)
 		line_map[line] = line_map[line] or { release = release }
 	end
 
-	return lines, line_map, spans
+	return lines, spans, line_map
 end
 
 return M

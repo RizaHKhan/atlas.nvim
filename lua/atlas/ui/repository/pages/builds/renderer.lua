@@ -12,7 +12,7 @@ end
 
 ---@param state RepositoryBuilds
 ---@param width integer
----@return string[], table<integer, PullsPipeline>, AtlasUIHighlight[]
+---@return string[], AtlasUIHighlight[], table<integer, PullsPipeline>
 function M.render(state, width)
 	local lines, line_map, spans = {}, {}, {}
 	local runs = state.runs
@@ -57,7 +57,7 @@ function M.render(state, width)
 		add("")
 	end
 
-	return lines, line_map, spans
+	return lines, spans, line_map
 end
 
 return M

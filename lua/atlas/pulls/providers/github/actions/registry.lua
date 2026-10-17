@@ -591,7 +591,7 @@ register({
 			title = "Browse Repository",
 			include_all = false,
 			on_select = function(repo)
-				require("atlas.ui.repository").open(repo, ctx.provider)
+				require("atlas.ui.repository").open(repo, ctx.provider, { page = ctx.page })
 				done(nil, nil)
 			end,
 			on_cancel = function()

@@ -1,12 +1,13 @@
-local resolver = require("atlas.core.keymaps")
 local notify = require("atlas.core.notify")
 local requests = require("atlas.core.requests")
 local discussions = require("atlas.providers.github.discussions")
 local panel = require("atlas.providers.github.ui.repository.pages.discussions.panel")
+local keymaps = require("atlas.providers.github.ui.repository.pages.discussions.keymaps")
 local renderer = require("atlas.providers.github.ui.repository.pages.discussions.renderer")
 local spinner = require("atlas.ui.components.spinner")
 local picker = require("atlas.ui.picker")
 local help = require("atlas.ui.popups.help")
+local prompt = require("atlas.ui.prompt")
 local emojis = require("atlas.ui.shared.emojis")
 local icons = require("atlas.ui.shared.icons")
 local utils = require("atlas.ui.shared.utils")
@@ -18,9 +19,7 @@ local utils = require("atlas.ui.shared.utils")
 ---@field repo AtlasRepositoryDetails
 ---@field statusline AtlasStatusline
 ---@field discussions GitHubDiscussion[]|"loading"|string
----@field filter "open"|"closed"
----@field counts { open: integer, closed: integer }
----@field category GitHubDiscussionCategory|nil
+---@field query string
 ---@field categories GitHubDiscussionCategory[]
 ---@field page integer
 ---@field cursors table<integer, string>
@@ -29,8 +28,7 @@ local utils = require("atlas.ui.shared.utils")
 ---@field panel GitHubDiscussionPanel|nil
 ---@field requests AtlasRequestScope
 ---@field spinner SpinnerInstance
----@field group integer
----@field keymaps table<integer, table<string, AtlasHelpKeyItem[]>>
+---@field keymaps table<string, AtlasHelpKeyItem[]>
 
 local M = { key = "discussions", label = "Discussions", icon = icons.get("conversation") }
 local namespace = vim.api.nvim_create_namespace("atlas.repository.discussions")
@@ -64,10 +62,10 @@ local function render(state)
 		return
 	end
 
-	local lines, line_map, spans = renderer.render(state, vim.api.nvim_win_get_width(state.win))
+	local lines, spans, line_map = renderer.render(state, vim.api.nvim_win_get_width(state.win))
 	state.line_map = line_map
 	if #items == 0 then
-		utils.buffer.center_message(state.buf, state.win, "No " .. state.filter .. " discussions found", lines)
+		utils.buffer.center_message(state.buf, state.win, "No discussions found", lines)
 	else
 		vim.bo[state.buf].modifiable = true
 		vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
@@ -94,8 +92,7 @@ local function load(state)
 
 	state.requests.run(function(done)
 		return discussions.fetch(state.repo, {
-			state = state.filter,
-			category = state.category and state.category.id,
+			query = state.query,
 			cursor = state.cursors[state.page],
 		}, done)
 	end, function(page, err)
@@ -108,7 +105,6 @@ local function load(state)
 		end
 
 		state.discussions = page.items
-		state.counts = page.counts
 		state.categories = page.categories
 		state.next_cursor = page.next_cursor
 		render(state)
@@ -116,6 +112,54 @@ local function load(state)
 			vim.api.nvim_win_set_cursor(state.win, { 3, 0 })
 		end
 	end)
+end
+
+---@param state RepositoryDiscussions
+---@param query string
+local function search(state, query)
+	if states[state.buf] == state then
+		state.query = query
+		state.page, state.cursors = 1, {}
+		load(state)
+	end
+end
+
+---@param state RepositoryDiscussions
+local function edit_query(state)
+	prompt.open({
+		name = "AtlasDiscussionSearch",
+		default = state.query .. " ",
+		complete = function(arglead)
+			local items = { "repo:", "is:", "author:", "category:", "label:", "sort:" }
+			if arglead:match("^is:") then
+				items = { "is:open", "is:closed", "is:answered", "is:unanswered", "is:locked", "is:unlocked" }
+			end
+
+			return vim.tbl_filter(function(item)
+				return item:sub(1, #arglead) == arglead
+			end, items)
+		end,
+		on_submit = function(query)
+			query = vim.trim(query)
+			if query ~= "" then
+				search(state, query)
+			end
+		end,
+	})
+end
+
+---@param state RepositoryDiscussions
+local function toggle_state(state)
+	local query = state.query
+	if query:find("is:closed", 1, true) then
+		query = query:gsub("is:closed", "is:open")
+	elseif query:find("is:open", 1, true) then
+		query = query:gsub("is:open", "is:closed")
+	else
+		query = query .. " is:closed"
+	end
+
+	search(state, query)
 end
 
 ---@param state RepositoryDiscussions
@@ -128,7 +172,7 @@ local function select_category(state)
 	local items, selected = { all }, 1
 	for index, category in ipairs(state.categories) do
 		table.insert(items, category)
-		if state.category and state.category.id == category.id then
+		if state.query:find('category:"' .. category.name .. '"', 1, true) then
 			selected = index + 1
 		end
 	end
@@ -145,17 +189,16 @@ local function select_category(state)
 			return emojis.get(category.emoji) .. "  " .. category.name
 		end,
 		on_select = function(category)
-			if not category or states[state.buf] ~= state then
+			if not category then
 				return
 			end
 
-			state.category = nil
+			local query = vim.trim((state.query:gsub('%s*category:"[^"]*"', ""):gsub("%s*category:%S+", "")))
 			if category ~= all then
-				state.category = category
+				query = query .. ' category:"' .. category.name .. '"'
 			end
 
-			state.page, state.cursors = 1, {}
-			load(state)
+			search(state, query)
 		end,
 	})
 end
@@ -172,124 +215,51 @@ local function open_panel(state, number)
 end
 
 ---@param state RepositoryDiscussions
-local function setup_keymaps(state)
-	local actions = {
-		{
-			key = resolver.resolve("ui.refresh"),
-			desc = "Refresh discussions",
-			callback = function()
-				state.page, state.cursors = 1, {}
-				load(state)
-			end,
-			index = 80,
-		},
-		{
-			key = { "t" },
-			desc = "Toggle open/closed discussions",
-			group = "Filters",
-			callback = function()
-				state.filter = state.filter == "open" and "closed" or "open"
-				state.page, state.cursors = 1, {}
-				load(state)
-			end,
-			index = 10,
-		},
-		{
-			key = { "c" },
-			desc = "Filter by category",
-			group = "Filters",
-			callback = function()
-				select_category(state)
-			end,
-			index = 11,
-		},
-		{
-			key = resolver.resolve("ui.next_page"),
-			desc = "Next discussions",
-			callback = function()
-				if state.discussions == "loading" or not state.next_cursor then
-					return
-				end
+local function refresh(state)
+	state.page, state.cursors = 1, {}
+	load(state)
+end
 
-				state.page = state.page + 1
-				state.cursors[state.page] = state.next_cursor
-				load(state)
-			end,
-			index = 16,
-		},
-		{
-			key = resolver.resolve("ui.previous_page"),
-			desc = "Previous discussions",
-			callback = function()
-				if state.discussions ~= "loading" and state.page > 1 then
-					state.page = state.page - 1
-					load(state)
-				end
-			end,
-			index = 15,
-		},
-	}
-
-	---@param buf integer
-	local function register(buf)
-		local groups = { General = {}, Filters = {} }
-		for _, action in ipairs(actions) do
-			if action.key and #action.key > 0 then
-				table.insert(groups[action.group or "General"], {
-					key = action.key,
-					desc = action.desc,
-					index = action.index,
-					callback = action.callback,
-					opts = { silent = true, nowait = true },
-				})
-			end
-		end
-
-		state.keymaps[buf] = groups
-		help.register("General", groups.General, { buffer = buf, index = 1 })
-		help.register("Filters", groups.Filters, { buffer = buf, index = 2 })
+---@param state RepositoryDiscussions
+local function next_page(state)
+	if state.discussions ~= "loading" and state.next_cursor then
+		state.page = state.page + 1
+		state.cursors[state.page] = state.next_cursor
+		load(state)
 	end
+end
 
-	register(state.sidebar_buf)
+---@param state RepositoryDiscussions
+local function previous_page(state)
+	if state.discussions ~= "loading" and state.page > 1 then
+		state.page = state.page - 1
+		load(state)
+	end
+end
 
-	table.insert(actions, {
-		key = vim.list_extend(resolver.resolve("ui.select") or {}, resolver.resolve("ui.toggle_panel") or {}),
-		desc = "Open discussion",
-		callback = function()
-			local discussion = current(state)
-			if discussion then
-				open_panel(state, discussion.number)
-			end
-		end,
-		index = 1,
-	})
+---@param state RepositoryDiscussions
+local function open_discussion(state)
+	local discussion = current(state)
+	if discussion then
+		open_panel(state, discussion.number)
+	end
+end
 
-	table.insert(actions, {
-		key = resolver.resolve("ui.open_in_browser"),
-		desc = "Open discussion in browser",
-		callback = function()
-			local discussion = current(state)
-			if discussion and discussion.url ~= "" then
-				vim.ui.open(discussion.url)
-			end
-		end,
-		index = 4,
-	})
+---@param state RepositoryDiscussions
+local function open_in_browser(state)
+	local discussion = current(state)
+	if discussion and discussion.url ~= "" then
+		vim.ui.open(discussion.url)
+	end
+end
 
-	table.insert(actions, {
-		key = resolver.resolve("ui.copy_url"),
-		desc = "Copy discussion URL",
-		callback = function()
-			local discussion = current(state)
-			if discussion and discussion.url ~= "" then
-				vim.fn.setreg("+", discussion.url)
-				notify.success("Copied URL")
-			end
-		end,
-		index = 9,
-	})
-
-	register(state.buf)
+---@param state RepositoryDiscussions
+local function copy_url(state)
+	local discussion = current(state)
+	if discussion and discussion.url ~= "" then
+		vim.fn.setreg("+", discussion.url)
+		notify.success("Copied URL")
+	end
 end
 
 ---@param opts { buf: integer, win: integer, sidebar_buf: integer, repo: AtlasRepositoryDetails, provider: PullsProvider|IssuesProvider, statusline: AtlasStatusline, ctx: { number?: integer } }
@@ -302,15 +272,13 @@ function M.open(opts)
 		repo = opts.repo,
 		statusline = opts.statusline,
 		discussions = "loading",
-		filter = "open",
-		counts = { open = 0, closed = 0 },
+		query = string.format("repo:%s is:open sort:updated-desc", opts.repo.full_name),
 		categories = {},
 		page = 1,
 		cursors = {},
 		line_map = {},
 		requests = requests.new(),
 		spinner = spinner.create(),
-		group = vim.api.nvim_create_augroup("AtlasRepositoryDiscussions" .. opts.buf, { clear = true }),
 		keymaps = {},
 	}
 
@@ -324,20 +292,29 @@ function M.open(opts)
 	vim.wo[state.win].cursorline = true
 	vim.wo[state.win].wrap = false
 
-	setup_keymaps(state)
-
-	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
-		group = state.group,
-		callback = function(event)
-			if event.event == "VimResized" or vim.tbl_contains(vim.v.event.windows, state.win) then
-				render(state)
-			end
-		end,
+	keymaps.setup(state, {
+		copy_url = copy_url,
+		edit_query = edit_query,
+		next_page = next_page,
+		open_discussion = open_discussion,
+		open_in_browser = open_in_browser,
+		previous_page = previous_page,
+		refresh = refresh,
+		select_category = select_category,
+		toggle_state = toggle_state,
 	})
 
 	load(state)
 	if opts.ctx.number then
 		open_panel(state, opts.ctx.number)
+	end
+end
+
+---@param buf integer
+function M.render(buf)
+	local state = states[buf]
+	if state then
+		render(state)
 	end
 end
 
@@ -353,19 +330,8 @@ function M.close(buf)
 	state.requests.cancel()
 	state.spinner:stop()
 	state.statusline:clear_notice()
-	vim.api.nvim_del_augroup_by_id(state.group)
-	for buffer, groups in pairs(state.keymaps) do
-		for group, items in pairs(groups) do
-			help.remove(group, items, { buffer = buffer })
-		end
-	end
-
-	if utils.window.valid(state.win) then
-		vim.wo[state.win].cursorline = false
-	end
-
-	if utils.buffer.valid(state.buf) then
-		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
+	for group, items in pairs(state.keymaps) do
+		help.remove(group, items, { buffer = state.sidebar_buf })
 	end
 end
 

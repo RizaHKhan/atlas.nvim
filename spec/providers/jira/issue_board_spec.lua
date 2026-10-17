@@ -60,7 +60,7 @@ describe("Jira issue board provider", function()
 				completed = true
 			end
 		)
-		handle.cancel()
+		assert(handle).cancel()
 		status_done({ { id = "1", name = "Open", category = "new" } })
 		assert.is_true(cancelled)
 		assert.is_false(completed)

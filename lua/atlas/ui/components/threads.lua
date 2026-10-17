@@ -29,13 +29,13 @@ local markdown = require("atlas.formats.markdown")
 ---@field line_map table|nil Extra fields merged into every line-map entry
 
 ---@class AtlasThreadRenderOpts
----@field padding_x integer|nil Horizontal padding (default 2)
----@field mode AtlasThreadMode|nil Rendering mode (default "tree")
----@field content_max_lines integer|fun(item: AtlasThreadItem): integer|nil Max visible content lines per item (nil = unlimited).
----@field content_truncated_key string|nil Key shown when expandable content is truncated.
----@field content_prefix string|nil Prefix placed before root content after padding
+---@field padding_x? integer Horizontal padding (default 2)
+---@field mode? AtlasThreadMode Rendering mode (default "tree")
+---@field content_max_lines? integer|(fun(item: AtlasThreadItem): integer|nil) Max visible content lines per item (nil = unlimited).
+---@field content_truncated_key? string Key shown when expandable content is truncated.
+---@field content_prefix? string Prefix placed before root content after padding
 ---@field content_hl? fun(item: AtlasThreadItem, row: string, row_index: integer): table[]|nil Returns segments for content
----@field header_fill string|nil
+---@field header_fill? string
 
 ---@class AtlasThreadSpan
 ---@field line integer 0-indexed line number

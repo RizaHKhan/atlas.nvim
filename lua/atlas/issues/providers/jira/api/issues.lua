@@ -8,7 +8,7 @@ local jira_mapper = require("atlas.providers.jira.mapper")
 local url_encode = require("atlas.core.utils").url_encode
 local request_scope = require("atlas.core.requests")
 
----@param story_points_field string
+---@param story_points_field string|nil
 local function search_fields(story_points_field)
 	return {
 		"summary",

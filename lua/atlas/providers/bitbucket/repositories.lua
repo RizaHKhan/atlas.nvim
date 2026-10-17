@@ -1,7 +1,6 @@
 local M = {
 	-- fetch_releases = nil,
 	-- fetch_release = nil,
-	-- fetch_issue_summary = nil,
 }
 ---@cast M AtlasRepositoryCapability
 

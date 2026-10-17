@@ -149,7 +149,7 @@ M.register({
 
 M.register({
 	name = "browse",
-	usage = "browse [repository URL|.] [page]",
+	usage = "browse [repository URL|.|page] [page]",
 	description = "Open the repository browser",
 	complete = function(arglead, args)
 		return require("atlas.commands.browse").complete(arglead, args)

@@ -30,19 +30,22 @@ local function normalize_color(color)
 	return nil
 end
 
----Choose a foreground for a solid chip background.
----@param bg string|integer|nil
----@return string|nil
-function M.foreground_for(bg)
-	local color = normalize_color(bg)
-	if color == nil then
-		return nil
-	end
+---@param color string Normalized "#rrggbb" color
+---@return string
+local function contrast(color)
 	local r = tonumber(color:sub(2, 3), 16)
 	local g = tonumber(color:sub(4, 5), 16)
 	local b = tonumber(color:sub(6, 7), 16)
 	local brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255
 	return brightness > 0.6 and "#1e1e2e" or "#ffffff"
+end
+
+---Choose a foreground for a solid chip background.
+---@param bg string|integer|nil
+---@return string|nil
+function M.foreground_for(bg)
+	local color = normalize_color(bg)
+	return color and contrast(color)
 end
 
 ---@param bg string
@@ -183,7 +186,7 @@ function M.chip(bg, opts)
 	if color == nil then
 		return "AtlasTextMuted"
 	end
-	local fg = normalize_color(opts.fg) or M.foreground_for(color)
+	local fg = normalize_color(opts.fg) or contrast(color)
 	local name = "AtlasChip_" .. color:sub(2) .. "_" .. fg:sub(2)
 	generated[name] = { bg = color, fg = fg, bold = true }
 	set_default(name, generated[name])

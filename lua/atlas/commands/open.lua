@@ -31,14 +31,14 @@ local function open_target(target, provider, entity)
 
 	if target.entity == "pr" then
 		---@cast entity PullRequest|nil
-		---@cast provider PullsProvider|nil
+		---@cast provider PullsProvider
 		require("atlas.pulls.ui.detail").open(
 			entity or { id = assert(target.id), repo_full_name = assert(target.repo_full_name) },
 			{ provider = provider }
 		)
 	elseif target.entity == "issue" then
 		---@cast entity Issue|nil
-		---@cast provider IssuesProvider|nil
+		---@cast provider IssuesProvider
 		local detail = require("atlas.issues.ui.detail")
 		if entity then
 			detail.open(entity, { provider = provider })

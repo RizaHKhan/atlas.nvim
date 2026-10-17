@@ -123,42 +123,31 @@ end
 ---@param discussions table[]
 ---@param viewer string|nil
 ---@param author_username string|nil
----@return IssueConversationItem[]
+---@return IssueComment[] comments, IssueActivityEntry[] activities
 local function map_discussions(discussions, viewer, author_username)
-	local items = {}
-	local events = {}
+	local comments, activities = {}, {}
 	for _, discussion_value in ipairs(discussions) do
 		local discussion = json.safe_table(discussion_value)
 		for _, raw in ipairs(json.safe_table(json.safe_table(discussion.notes).nodes)) do
 			if raw.system == true then
 				local entry = normalizer.to_activity_from_note(raw)
 				if entry then
-					table.insert(events, {
-						id = table.concat({ "activity", entry.date or "", #events + 1 }, ":"),
-						kind = "activity",
-						created_at = entry.date or "",
-						entity = entry,
-					})
+					table.insert(activities, entry)
 				end
 			else
 				local comment = normalizer.to_comment(raw, discussion, viewer, author_username)
 				if comment then
-					table.insert(items, {
-						id = "comment:" .. tostring(comment.id),
-						kind = "comment",
-						created_at = comment.created_at or "",
-						entity = comment,
-					})
+					table.insert(comments, comment)
 				end
 			end
 		end
 	end
-	return vim.list_extend(items, events)
+	return comments, activities
 end
 
 ---@param issue Issue
 ---@param opts { force_refresh?: boolean }|nil
----@param on_done fun(items: IssueConversationItem[]|nil, err: string|nil)
+---@param on_done fun(conversation: IssueConversation|nil, err: string|nil)
 ---@return { cancel: fun() }|nil
 function M.fetch_conversation(issue, opts, on_done)
 	return fetch_discussions(issue, opts, function(result, err)
@@ -166,17 +155,9 @@ function M.fetch_conversation(issue, opts, on_done)
 			on_done(nil, err)
 			return
 		end
-		local items = map_discussions(result.discussions, result.viewer, issue.reporter and issue.reporter.username)
-		local description = result.description
-		if description then
-			table.insert(items, 1, {
-				id = "description",
-				kind = "description",
-				created_at = description.created_at,
-				entity = description,
-			})
-		end
-		on_done(items, nil)
+		local comments, activities =
+			map_discussions(result.discussions, result.viewer, issue.reporter and issue.reporter.username)
+		on_done({ description = result.description, comments = comments, activities = activities }, nil)
 	end)
 end
 

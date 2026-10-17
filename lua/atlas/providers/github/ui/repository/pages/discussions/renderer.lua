@@ -120,22 +120,21 @@ local function detail_line(discussion)
 end
 
 ---@param state RepositoryDiscussions
+---@param width integer
 ---@return string[][]
-local function header(state)
-	local segments = { { " " } }
-	for _, filter in ipairs({ "open", "closed" }) do
-		local label = string.format("%s (%d)", filter:gsub("^%l", string.upper), state.counts[filter])
-		table.insert(segments, { label, state.filter == filter and "Normal" or "AtlasTextMuted" })
-		table.insert(segments, { "  " })
-	end
-
-	if state.category then
-		table.insert(segments, { emojis.get(state.category.emoji) .. " " .. state.category.name, "Normal" })
-		table.insert(segments, { "  " })
-	end
-
+local function header(state, width)
+	local page = ""
 	if state.page > 1 or state.next_cursor then
-		table.insert(segments, { "Page " .. state.page, "AtlasTextMuted" })
+		page = "Page " .. state.page
+	end
+
+	local prefix = " " .. icons.get("search") .. " "
+	local query = vim.trim((state.query:gsub("%s+", " ")))
+	query = utils.truncate(query, math.max(1, width - vim.api.nvim_strwidth(prefix) - #page - 3))
+	local segments = { { prefix .. query, "AtlasTextMuted" } }
+	if page ~= "" then
+		table.insert(segments, { string.rep(" ", math.max(2, width - width_of(segments) - #page - 1)) })
+		table.insert(segments, { page, "AtlasTextMuted" })
 	end
 
 	return segments
@@ -143,10 +142,10 @@ end
 
 ---@param state RepositoryDiscussions
 ---@param width integer
----@return string[], table<integer, GitHubDiscussion>, table[]
+---@return string[], table[], table<integer, GitHubDiscussion>
 function M.render(state, width)
 	local lines, line_map, spans = {}, {}, {}
-	add_line(lines, spans, header(state))
+	add_line(lines, spans, header(state, width))
 	add_line(lines, spans, {})
 
 	local discussions = state.discussions
@@ -163,7 +162,7 @@ function M.render(state, width)
 		end
 	end
 
-	return lines, line_map, spans
+	return lines, spans, line_map
 end
 
 return M

@@ -51,6 +51,9 @@ end
 local function comment_item(comment, root, expanded)
 	local author = comment.author or "ghost"
 	local additional = { { utils.relative_time_text(comment.created_at), "AtlasTextMuted" } }
+	if comment.author_roles then
+		table.insert(additional, { "  " .. table.concat(comment.author_roles, " "), "AtlasTextMuted" })
+	end
 	if comment.answer then
 		table.insert(additional, { "  " .. icons.get("check_circle") .. " Answer", "AtlasTextPositive" })
 	end
@@ -147,8 +150,7 @@ function M.render(discussion, expanded, width)
 		table.insert(thread_items, comment_item(comment, comment, expanded))
 	end
 
-	local options = { padding_x = 1 }
-	local comment_lines, comment_spans, comment_map = threads.render_comments(thread_items, width, options)
+	local comment_lines, comment_spans, comment_map = threads.render_comments(thread_items, width, { padding_x = 1 })
 	local offset = #lines
 	utils.append_block(lines, spans, { lines = comment_lines, highlights = comment_spans })
 	for row, entry in pairs(comment_map) do

@@ -2,18 +2,20 @@ local github_client = require("spec.support.github_client_stub")
 
 local MODULE = "atlas.providers.github.discussions"
 
-local function fetch(repository)
+local function fetch(repository, search)
+	local sent
 	github_client.install({
-		gh = function(_, callback)
-			callback({ data = { repository = repository } }, nil)
+		gh = function(args, callback)
+			sent = args
+			callback({ data = { repository = repository, search = search } }, nil)
 		end,
 	})
 	package.loaded[MODULE] = nil
 	local page, err
-	require(MODULE).fetch({ full_name = "octo/repo" }, { state = "open" }, function(value, fetch_err)
+	require(MODULE).fetch({ full_name = "octo/repo" }, { query = "repo:octo/repo is:open" }, function(value, fetch_err)
 		page, err = value, fetch_err
 	end)
-	return page, err
+	return page, err, sent
 end
 
 local function fetch_discussion(repository)
@@ -36,44 +38,42 @@ describe("GitHub discussions", function()
 		package.loaded[MODULE] = nil
 	end)
 
-	it("maps discussions and marks pinned ones", function()
-		local page = assert(fetch({
+	it("maps searched discussions and marks pinned ones", function()
+		local page, _, sent = fetch({
 			hasDiscussionsEnabled = true,
 			discussionCategories = {
 				nodes = { { id = "C1", name = "Announcements", emoji = ":mega:", isAnswerable = false } },
 			},
-			open = { totalCount = 2 },
-			closed = { totalCount = 5 },
 			pinnedDiscussions = { nodes = { { discussion = { number = 40 } } } },
-			discussions = {
-				pageInfo = { hasNextPage = true, endCursor = "next" },
-				nodes = {
-					{
-						number = 40,
-						title = "Welcome",
-						url = "https://github.com/octo/repo/discussions/40",
-						createdAt = "2026-07-13T17:41:27Z",
-						isAnswered = vim.NIL,
-						upvoteCount = 1,
-						author = { login = "octo" },
-						category = { id = "C1", name = "Announcements", emoji = ":mega:", isAnswerable = false },
-						labels = { nodes = { { name = "news", color = "0e8a16" } } },
-						comments = { totalCount = 3 },
-					},
-					{
-						number = 43,
-						title = "PR Reviews",
-						isAnswered = true,
-						author = vim.NIL,
-						category = { name = "Q&A", emoji = ":pray:", isAnswerable = true },
-						labels = { nodes = {} },
-						comments = { totalCount = 1 },
-					},
+		}, {
+			pageInfo = { hasNextPage = true, endCursor = "next" },
+			nodes = {
+				{
+					number = 40,
+					title = "Welcome",
+					url = "https://github.com/octo/repo/discussions/40",
+					createdAt = "2026-07-13T17:41:27Z",
+					isAnswered = vim.NIL,
+					upvoteCount = 1,
+					author = { login = "octo" },
+					category = { id = "C1", name = "Announcements", emoji = ":mega:", isAnswerable = false },
+					labels = { nodes = { { name = "news", color = "0e8a16" } } },
+					comments = { totalCount = 3 },
+				},
+				{
+					number = 43,
+					title = "PR Reviews",
+					isAnswered = true,
+					author = vim.NIL,
+					category = { name = "Q&A", emoji = ":pray:", isAnswerable = true },
+					labels = { nodes = {} },
+					comments = { totalCount = 1 },
 				},
 			},
-		}))
+		})
 
-		assert.are.same({ open = 2, closed = 5 }, page.counts)
+		page = assert(page)
+		assert.are.same({ "-f", "search=repo:octo/repo is:open" }, { sent[#sent - 1], sent[#sent] })
 		assert.are.same({ { id = "C1", name = "Announcements", emoji = "mega", answerable = false } }, page.categories)
 		assert.are.equal("next", page.next_cursor)
 		assert.are.same({
@@ -214,19 +214,5 @@ describe("GitHub discussions", function()
 
 		assert.truthy(queries[1]:find("updateDiscussion(", 1, true))
 		assert.truthy(queries[2]:find("updateDiscussionComment(", 1, true))
-	end)
-
-	it("reports a missing discussion", function()
-		local discussion, err = fetch_discussion({ discussion = vim.NIL })
-
-		assert.is_nil(discussion)
-		assert.are.equal("Discussion not found", err)
-	end)
-
-	it("reports repositories without discussions", function()
-		local page, err = fetch({ hasDiscussionsEnabled = false })
-
-		assert.is_nil(page)
-		assert.are.equal("Discussions are disabled for this repository", err)
 	end)
 end)

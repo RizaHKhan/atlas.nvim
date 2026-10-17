@@ -541,8 +541,8 @@ local function review_details(pages)
 		for _, node in ipairs(((current.reviews or {}).nodes or {})) do
 			table.insert(review_nodes, node)
 			local state = HISTORY_STATES[tostring(node.state or "")]
-			local body = json.safe_str(node.body) or ""
-			if vim.trim(body) == "" then
+			local body = json.safe_str(node.body)
+			if body and vim.trim(body) == "" then
 				body = nil
 			end
 			if state then

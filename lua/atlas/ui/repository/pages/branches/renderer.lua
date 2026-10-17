@@ -5,7 +5,7 @@ local M = {}
 
 ---@param state RepositoryBranches
 ---@param width integer
----@return string[], table<integer, RepositoryBranchSelection>, table[]
+---@return string[], table[], table<integer, RepositoryBranchSelection>
 function M.render(state, width)
 	local rows = {}
 	local branches = state.branches
@@ -83,11 +83,11 @@ function M.render(state, width)
 		end
 	end
 
-	return lines, line_map, spans
+	return lines, spans, line_map
 end
 
 ---@param branch AtlasRepositoryBranch
----@param commit? RepositoryBranchCommit
+---@param commit? AtlasGitCommit
 ---@return AtlasPickerPreview
 function M.preview(branch, commit)
 	local entry = commit or branch

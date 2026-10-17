@@ -1,4 +1,3 @@
-local resolver = require("atlas.core.keymaps")
 local notify = require("atlas.core.notify")
 local requests = require("atlas.core.requests")
 local providers = require("atlas.providers")
@@ -6,6 +5,7 @@ local pipelines = require("atlas.pulls.pipelines")
 local spinner = require("atlas.ui.components.spinner")
 local picker = require("atlas.ui.picker")
 local help = require("atlas.ui.popups.help")
+local keymaps = require("atlas.ui.repository.pages.builds.keymaps")
 local renderer = require("atlas.ui.repository.pages.builds.renderer")
 local icons = require("atlas.ui.shared.icons")
 local utils = require("atlas.ui.shared.utils")
@@ -23,8 +23,7 @@ local utils = require("atlas.ui.shared.utils")
 ---@field line_map table<integer, PullsPipeline>
 ---@field requests AtlasRequestScope
 ---@field spinner SpinnerInstance
----@field group integer
----@field keymaps table<integer, table<string, AtlasHelpKeyItem[]>>
+---@field keymaps table<string, AtlasHelpKeyItem[]>
 
 local M = { key = "builds", label = "Builds", icon = icons.get("pipeline") }
 local namespace = vim.api.nvim_create_namespace("atlas.repository.builds")
@@ -61,28 +60,22 @@ local function render(state)
 		return
 	end
 
+	local lines, spans, line_map = renderer.render(state, vim.api.nvim_win_get_width(state.win))
+	state.line_map = line_map
 	if #runs == 0 then
-		utils.buffer.center_message(
-			state.buf,
-			state.win,
-			"No builds found for this branch.\nPress b to view another branch."
-		)
-
-		return
+		utils.buffer.center_message(state.buf, state.win, "No builds found", lines)
+	else
+		vim.bo[state.buf].modifiable = true
+		vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
+		vim.bo[state.buf].modifiable = false
 	end
 
-	local lines, line_map, spans = renderer.render(state, vim.api.nvim_win_get_width(state.win))
-	state.line_map = line_map
-	vim.bo[state.buf].modifiable = true
-	vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
 	for _, span in ipairs(spans) do
 		vim.api.nvim_buf_set_extmark(state.buf, namespace, span.line, span.start_col or 0, {
 			end_col = span.end_col,
 			hl_group = span.hl_group,
 		})
 	end
-
-	vim.bo[state.buf].modifiable = false
 end
 
 ---@param state RepositoryBuilds
@@ -98,7 +91,7 @@ local function load(state)
 	end
 
 	if not state.branch or state.branch == "" then
-		state.runs = "No default branch available. Press b to choose a branch."
+		state.runs = "No default branch available"
 		render(state)
 		return
 	end
@@ -162,26 +155,25 @@ local function change_branch(state)
 end
 
 ---@param state RepositoryBuilds
----@param buf integer
----@param actions table[]
-local function register(state, buf, actions)
-	local groups = { General = {}, Filters = {} }
-	for _, action in ipairs(actions) do
-		if action.key and #action.key > 0 then
-			local items = groups[action.group or "General"]
-			items[#items + 1] = {
-				key = action.key,
-				desc = action.desc,
-				index = action.index,
-				callback = action.callback,
-				opts = { silent = true, nowait = true },
-			}
-		end
+local function open_build(state)
+	local run = current(state)
+	if run then
+		pipelines.open({
+			provider = state.provider.id,
+			repo_full_name = state.repo.full_name,
+			target = run,
+		}, state.provider)
 	end
+end
 
-	state.keymaps[buf] = groups
-	help.register("General", groups.General, { buffer = buf, index = 1 })
-	help.register("Filters", groups.Filters, { buffer = buf, index = 2 })
+---@param state RepositoryBuilds
+local function open_in_browser(state)
+	local run = current(state)
+	if run and run.url then
+		vim.ui.open(run.url)
+	elseif run then
+		notify.info("This build has no browser URL")
+	end
 end
 
 ---@param opts { buf: integer, win: integer, sidebar_buf: integer, repo: AtlasRepositoryDetails, provider: PullsProvider|IssuesProvider, statusline: AtlasStatusline }
@@ -202,7 +194,6 @@ function M.open(opts)
 		line_map = {},
 		requests = requests.new(),
 		spinner = spinner.create(),
-		group = vim.api.nvim_create_augroup("AtlasRepositoryBuilds" .. opts.buf, { clear = true }),
 		keymaps = {},
 	}
 
@@ -214,67 +205,19 @@ function M.open(opts)
 		end
 	end
 
-	local actions = {
-		{
-			key = resolver.resolve("ui.refresh"),
-			desc = "Refresh builds",
-			callback = function()
-				load(state)
-			end,
-			index = 80,
-		},
-		{
-			key = "b",
-			desc = "Change build branch",
-			group = "Filters",
-			callback = function()
-				change_branch(state)
-			end,
-			index = 1,
-		},
-	}
-
-	register(state, state.sidebar_buf, actions)
-	vim.list_extend(actions, {
-		{
-			key = resolver.resolve("ui.select"),
-			desc = "Open build and logs",
-			callback = function()
-				local run = current(state)
-				if run then
-					pipelines.open({
-						provider = state.provider.id,
-						repo_full_name = state.repo.full_name,
-						target = run,
-					}, state.provider)
-				end
-			end,
-			index = 1,
-		},
-		{
-			key = resolver.resolve("ui.open_in_browser"),
-			desc = "Open build in browser",
-			callback = function()
-				local run = current(state)
-				if run and run.url then
-					vim.ui.open(run.url)
-				elseif run then
-					notify.info("This build has no browser URL")
-				end
-			end,
-			index = 4,
-		},
-	})
-
-	register(state, state.buf, actions)
-	vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
-		group = state.group,
-		callback = function()
-			render(state)
-		end,
-	})
-
+	keymaps.setup(
+		state,
+		{ change_branch = change_branch, load = load, open_build = open_build, open_in_browser = open_in_browser }
+	)
 	load(state)
+end
+
+---@param buf integer
+function M.render(buf)
+	local state = states[buf]
+	if state then
+		render(state)
+	end
 end
 
 ---@param buf integer
@@ -288,15 +231,8 @@ function M.close(buf)
 	state.requests.cancel()
 	state.spinner:stop()
 	state.statusline:clear_notice()
-	vim.api.nvim_del_augroup_by_id(state.group)
-	for buffer, groups in pairs(state.keymaps) do
-		for group, items in pairs(groups) do
-			help.remove(group, items, { buffer = buffer })
-		end
-	end
-
-	if utils.buffer.valid(state.buf) then
-		vim.api.nvim_buf_clear_namespace(state.buf, namespace, 0, -1)
+	for group, items in pairs(state.keymaps) do
+		help.remove(group, items, { buffer = state.sidebar_buf })
 	end
 end
 
