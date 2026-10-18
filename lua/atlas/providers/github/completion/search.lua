@@ -4,6 +4,7 @@
 
 local M = {}
 
+local config = require("atlas.config")
 local prompt = require("atlas.ui.prompt")
 local utils = require("atlas.core.utils")
 
@@ -126,18 +127,42 @@ end
 ---@param default string
 ---@param on_submit fun(query: string)
 function M.edit(default, on_submit)
-	prompt.open({
-		name = "AtlasGitHubSearch",
-		complete = complete_cmdline,
-		on_submit = function(query)
-			query = vim.trim(tostring(query or ""))
-			if query == "" then
-				return
-			end
+	local picker = config.options.ui.picker or "auto"
+	local Snacks
+	if picker == "auto" or picker == "snacks" then
+		local ok
+		ok, Snacks = pcall(require, "snacks")
+		if not ok then
+			Snacks = nil
+		end
+	end
+
+	if not Snacks then
+		prompt.open({
+			name = "AtlasGitHubSearch",
+			complete = complete_cmdline,
+			on_submit = function(query)
+				query = vim.trim(tostring(query or ""))
+
+				if query == "" then
+					return
+				end
+				on_submit(query)
+			end,
+			default = default,
+		})
+		return
+	end
+
+	Snacks.input({
+		prompt = "GitHub search: ",
+		default = default or "",
+	}, function(query)
+		query = vim.trim(tostring(query or ""))
+		if query ~= "" then
 			on_submit(query)
-		end,
-		default = default,
-	})
+		end
+	end)
 end
 
 ---@param default? string
