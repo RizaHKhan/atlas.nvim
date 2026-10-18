@@ -19,6 +19,7 @@ end
 ---@param details PullRequestDetails|nil
 ---@return AtlasPickerPreview
 local function format_preview(pr, details)
+	---@cast pr GitHubPullRequest
 	local author = pr.author.username ~= "" and "@" .. pr.author.username or pr.author.name
 	local status = pr.state .. "   updated " .. ui_utils.relative_time(pr.updated_on)
 	if pr.lines_added ~= nil and pr.lines_removed ~= nil then

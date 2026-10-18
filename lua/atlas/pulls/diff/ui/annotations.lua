@@ -107,20 +107,28 @@ function M.selection(view, file, side, lines, position)
 		return nil, "The selected lines are outside the file"
 	end
 
-	local inline = position(last)
-	if first ~= last then
-		local start = position(first)
-		if (start.to ~= nil) ~= (inline.to ~= nil) then
-			return nil, "The selected lines cannot be represented as one review range"
-		end
-		inline.start_from = start.from
-		inline.start_to = start.to
+	local stop = position(last)
+	local start = first ~= last and position(first) or nil
+	if start and (start.to ~= nil) ~= (stop.to ~= nil) then
+		return nil, "The selected lines cannot be represented as one review range"
 	end
-	inline.path = file.path
-	inline.old_path = file.old_path
-	inline.commit_hash = view.result.head_revision
 
-	return { file = file, side = side, first = first, last = last, source_lines = lines, inline = inline }
+	return {
+		file = file,
+		side = side,
+		first = first,
+		last = last,
+		source_lines = lines,
+		inline = {
+			path = file.path,
+			old_path = file.old_path,
+			from = stop.from,
+			to = stop.to,
+			start_from = start and start.from,
+			start_to = start and start.to,
+			commit_hash = view.result.head_revision,
+		},
+	}
 end
 
 ---@param view AtlasDiffView
@@ -143,7 +151,7 @@ function M.toggle_threads(view, all)
 			return item.thread
 		end)
 		:totable()
-	return thread_ui.toggle_all_threads(threads, view.expanded_threads)
+	return (thread_ui.toggle_all_threads(threads, view.expanded_threads))
 end
 
 ---@param comment PullsComment

@@ -226,7 +226,7 @@ function M.register(buf, views)
 		end
 	end
 
-	local bookmark_view = state.bookmarks.tab
+	local bookmark_view = state.bookmarks.tab --[[@as IssuesViewConfig]]
 	table.insert(items, {
 		key = bookmark_view.key,
 		desc = "Switch to bookmarks",

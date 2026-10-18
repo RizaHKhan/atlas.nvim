@@ -74,9 +74,10 @@ function M.render(tab_items)
 	local width = vim.api.nvim_win_get_width(win)
 	local winbar_items = {}
 	if pr ~= nil then
-		if type(state.diffstat) == "table" then
+		local diffstat = state.diffstat
+		if type(diffstat) == "table" then
 			local additions, deletions = 0, 0
-			for _, entry in ipairs(state.diffstat) do
+			for _, entry in ipairs(diffstat) do
 				additions = additions + (tonumber(entry.lines_added) or 0)
 				deletions = deletions + (tonumber(entry.lines_removed) or 0)
 			end

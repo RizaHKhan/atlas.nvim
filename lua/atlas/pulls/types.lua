@@ -203,13 +203,11 @@
 -- Conversation
 --------------------------------------------------------------------------------
 
----@alias PullsConversationItemKind "description"|"comment"|"review"|"activity"
-
----@class PullsConversationItem
----@field id string
----@field kind PullsConversationItemKind
----@field created_at string
----@field entity PullsComment|PullsReviewHistoryEntry|PullsActivityEntry
+---@class PullsConversation
+---@field description PullsComment|nil
+---@field comments PullsComment[]
+---@field reviews PullsReviewHistoryEntry[]
+---@field activities PullsActivityEntry[]
 
 --------------------------------------------------------------------------------
 -- Commit

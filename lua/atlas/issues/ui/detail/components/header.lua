@@ -36,7 +36,8 @@ function M.render(issue, width, fields)
 	local title_line = " " .. title
 
 	local rows = {}
-	for index = 1, #(fields or {}), 2 do
+	fields = fields or {}
+	for index = 1, #fields, 2 do
 		local left = fields[index]
 		local right = fields[index + 1]
 		table.insert(rows, {

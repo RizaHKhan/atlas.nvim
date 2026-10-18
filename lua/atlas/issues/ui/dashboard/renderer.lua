@@ -6,7 +6,7 @@ local utils = require("atlas.ui.shared.utils")
 local icons = require("atlas.ui.shared.icons")
 local bookmarks = require("atlas.ui.shared.bookmarks")
 local layouts = require("atlas.issues.ui.layouts")
-local notif_state = require("atlas.ui.notifications.state")
+local notifications = require("atlas.ui.notifications")
 local window = require("atlas.issues.ui.dashboard.window")
 
 local M = {}
@@ -106,7 +106,7 @@ function M.render(opts)
 	local actions = {}
 
 	if provider and provider.capabilities.notifications then
-		local count = notif_state.get(provider.id).unread_count
+		local count = notifications.unread_count(provider)
 		local bell_icon, bell_hl
 		if count > 0 then
 			bell_icon, bell_hl = icons.get("bell_unread")

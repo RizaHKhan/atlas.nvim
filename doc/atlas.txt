@@ -258,9 +258,12 @@ Use `ctx.write(text)` to show output and `done(ok, message)` to finish the actio
         repository. `.` opens the current branch's pull request. Without a
         target, it prompts for one.
 
-:Atlas browse [repository URL|.] [page]
+:Atlas browse [repository URL|.|page] [page]
         Open the repository browser. Use `.` for the current repository.
-        Example: `:Atlas browse . branches`
+        With only a page name, pick a repository first. A URL to a
+        repository page or item, such as `/issues` or `/pull/3`, opens
+        that page.
+        Examples: `:Atlas browse . branches`, `:Atlas browse issues`
 
 :Atlas clear [cache|notes|stars]
         Clear all Atlas data, or only cached data and cloned repositories,

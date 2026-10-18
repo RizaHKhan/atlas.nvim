@@ -203,6 +203,7 @@ local function threads_opts(padding_x, opts)
 	local content_max_lines = opts.content_max_lines
 	if type(content_max_lines) == "function" then
 		local callback = content_max_lines
+		---@param item AtlasThreadItem
 		content_max_lines = function(item)
 			local comment = item.line_map and item.line_map.comment or nil
 			return comment and callback(comment) or nil

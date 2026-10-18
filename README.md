@@ -130,7 +130,7 @@ The diff uses a temporary worktree, removed when the diff closes. Set `link` to 
 
 <img alt="repository" src="https://github.com/user-attachments/assets/2462e7ce-7e80-4d6c-badc-d2112c808e12" />
 
-Browse a repository's README, pull requests, issues, builds, branches, tags and releases. Use `:Atlas browse .` for the current repository, or pass a repository URL.
+Browse a repository's README, pull requests, issues, discussions, builds, branches, tags and releases. Use `:Atlas browse .` for the current repository, or pass a repository URL.
 
 ### Pipelines
 
@@ -285,7 +285,7 @@ Save searches as bookmarks, or press `*` to star a pull request or issue. Both a
 - Save issue descriptions as templates and reuse them when creating issues.
 - Close or reopen GitHub/GitLab issues and change Jira workflow states.
 - Jump between linked issues and pull requests and back, or browse related issues and sub-issues.
-- Read GitHub and GitLab notifications, open the related item, and mark them as read or done.
+- Read GitHub and GitLab notifications, open them in Atlas, and mark them as read or done.
 - Remap shortcuts or assign multiple keys to the same action.
 - Set local repository paths and PR templates per project.
 
@@ -362,7 +362,7 @@ Save searches as bookmarks, or press `*` to star a pull request or issue. Both a
 - `:Atlas create issue [provider|.]` - Create an issue; `.` uses the current repository's provider
 - `:Atlas search [provider|.]` - Search configured pull-request and issue providers; `.` uses the current repository's provider
 - `:Atlas open [target|.]` - Open a pull request or issue by URL, Jira key, or number; `.` opens the current branch's pull request
-- `:Atlas browse [repository URL|.] [page]` - Open the repository browser, e.g. `:Atlas browse . branches`
+- `:Atlas browse [repository URL|.|page] [page]` - Open the repository browser; `.` uses the current repository, a page name alone picks a repository first, and a URL to a repository page or item opens that page, e.g. `:Atlas browse . branches`, `:Atlas browse issues` or `:Atlas browse https://github.com/owner/repo/discussions`
 - `:Atlas notes [target|.]` - Inspect notes; `.` shows the current repository's notes
 - `:Atlas clear [cache|notes|stars]` - Clear all Atlas data or only cached data and cloned repositories, notes, or starred items
 - `:Atlas logs` - Toggle Atlas logs

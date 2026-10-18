@@ -58,7 +58,7 @@ fragment actor on Actor{__typename login ...on User{name databaseId} ...on Bot{d
 
 ---@param issue Issue
 ---@param opts { force_refresh?: boolean }|nil
----@param on_done fun(items: IssueConversationItem[]|nil, err: string|nil)
+---@param on_done fun(conversation: IssueConversation|nil, err: string|nil)
 ---@return { cancel: fun() }|nil
 function M.fetch_conversation(issue, opts, on_done)
 	opts = opts or {}
@@ -98,47 +98,31 @@ function M.fetch_conversation(issue, opts, on_done)
 		end
 
 		local author_login = issue.reporter and issue.reporter.username
-		local items, events = {}, {}
+		---@type IssueConversation
+		local conversation = { comments = {}, activities = {} }
 		for index, page in ipairs(result) do
 			local raw_issue = json.safe_table(json.safe_table(json.safe_table(page.data).repository).issue)
 			-- Every page repeats the issue itself, so its description is taken from the first one.
-			local description = index == 1 and normalizer.to_comment(raw_issue, author_login) or nil
-			if description then
-				table.insert(items, {
-					id = "description",
-					kind = "description",
-					created_at = description.created_at,
-					entity = description,
-				})
+			if index == 1 then
+				conversation.description = normalizer.to_comment(raw_issue, author_login)
 			end
 			for _, node in ipairs(json.safe_table(json.safe_table(raw_issue.timelineItems).nodes)) do
 				if node.__typename == "IssueComment" then
 					local comment = normalizer.to_comment(node, author_login)
 					if comment then
-						table.insert(items, {
-							id = "comment:" .. comment.id,
-							kind = "comment",
-							created_at = comment.created_at,
-							entity = comment,
-						})
+						table.insert(conversation.comments, comment)
 					end
 				else
 					local entry = normalizer.to_timeline_entry(node)
 					if entry then
-						table.insert(events, {
-							id = table.concat({ "activity", entry.date, #events + 1 }, ":"),
-							kind = "activity",
-							created_at = entry.date,
-							entity = entry,
-						})
+						table.insert(conversation.activities, entry)
 					end
 				end
 			end
 		end
-		vim.list_extend(items, events)
 
-		cli.set_mem(cache_key, items)
-		on_done(items, nil)
+		cli.set_mem(cache_key, conversation)
+		on_done(conversation, nil)
 	end, {
 		action = "Fetch issue conversation timeline",
 		slug = slug,

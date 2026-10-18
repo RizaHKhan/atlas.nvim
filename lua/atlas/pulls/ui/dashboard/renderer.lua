@@ -1,7 +1,7 @@
 local header = require("atlas.ui.components.header")
 local icons = require("atlas.ui.shared.icons")
 local navbar = require("atlas.ui.components.navbar")
-local notif_state = require("atlas.ui.notifications.state")
+local notifications = require("atlas.ui.notifications")
 local layouts = require("atlas.pulls.ui.layouts")
 local state = require("atlas.pulls.state")
 local bookmarks = require("atlas.ui.shared.bookmarks")
@@ -136,7 +136,7 @@ local function render_header(lines, spans, width)
 		if #actions > 0 then
 			table.insert(actions, { label = "|", hl_group = "AtlasTextMuted" })
 		end
-		local count = notif_state.get(state.provider.id).unread_count
+		local count = notifications.unread_count(state.provider)
 		local bell, bell_hl = icons.get(count > 0 and "bell_unread" or "bell")
 		table.insert(actions, {
 			label = count > 0 and string.format("%s %d", bell, count) or bell,

@@ -1,6 +1,6 @@
 local M = {}
 
-local gitlab_mapping = require("atlas.providers.gitlab.mapping")
+local gitlab_mapper = require("atlas.providers.gitlab.mapper")
 local json = require("atlas.core.json")
 
 ---@param raw any
@@ -175,7 +175,7 @@ function M.to_pull_request_details(raw, viewer)
 	---@type GitLabPullRequestDetails
 	return {
 		description = json.safe_str(value.description) or "",
-		reactions = gitlab_mapping.award_reactions(json.safe_table(value.awardEmoji).nodes, viewer),
+		reactions = gitlab_mapper.award_reactions(json.safe_table(value.awardEmoji).nodes, viewer),
 		is_subscribed = json.nilify(value.subscribed),
 		assignees = normalize_authors(json.safe_table(json.safe_table(value.assignees).nodes or value.assignees)),
 		labels = normalize_labels(json.safe_table(json.safe_table(value.labels).nodes or value.labels)),
@@ -309,8 +309,8 @@ end
 function M.to_comment(note, viewer, author_username)
 	local discussion = json.safe_table(note.discussion)
 	local root = json.safe_table(json.safe_table(json.safe_table(discussion.notes).nodes)[1])
-	local id = gitlab_mapping.note_id(note.id)
-	local root_id = gitlab_mapping.note_id(root.id)
+	local id = gitlab_mapper.note_id(note.id)
+	local root_id = gitlab_mapper.note_id(root.id)
 	local is_root = root_id == nil or root_id == id
 	local resolved = discussion.resolved == true
 	local file, inline = to_graphql_position(json.nilify(note.position))
@@ -319,7 +319,7 @@ function M.to_comment(note, viewer, author_username)
 		parent_id = not is_root and root_id or nil,
 		thread_id = json.safe_str(discussion.id),
 		author = actor_from(note.author),
-		author_roles = gitlab_mapping.author_roles(note, author_username),
+		author_roles = gitlab_mapper.author_roles(note, author_username),
 		body = tostring(note.body or ""),
 		created_at = json.safe_str(note.createdAt) or "",
 		resolved_at = resolved and is_root and json.safe_str(discussion.resolvedAt) or nil,
@@ -327,7 +327,7 @@ function M.to_comment(note, viewer, author_username)
 		file = file,
 		inline = inline,
 		state = resolved and "RESOLVED" or nil,
-		reactions = gitlab_mapping.award_reactions(json.safe_table(note.awardEmoji).nodes, viewer),
+		reactions = gitlab_mapper.award_reactions(json.safe_table(note.awardEmoji).nodes, viewer),
 		url = json.safe_str(note.url),
 	}
 end
@@ -344,10 +344,10 @@ function M.to_description(raw, viewer, author_username)
 	return {
 		id = id,
 		author = actor_from(raw.author),
-		author_roles = gitlab_mapping.author_roles(raw, author_username),
+		author_roles = gitlab_mapper.author_roles(raw, author_username),
 		body = tostring(raw.description or ""),
 		created_at = json.safe_str(raw.createdAt) or "",
-		reactions = gitlab_mapping.award_reactions(json.safe_table(raw.awardEmoji).nodes, viewer),
+		reactions = gitlab_mapper.award_reactions(json.safe_table(raw.awardEmoji).nodes, viewer),
 		url = json.safe_str(raw.webUrl),
 	}
 end
@@ -366,11 +366,11 @@ function M.to_discussion_note(note, discussion, mr_url, author_username)
 	local outdated = position == nil and original_position ~= nil
 	local file, inline = to_rest_position(position or original_position)
 	return {
-		id = gitlab_mapping.note_id(note.id),
-		parent_id = not is_root and gitlab_mapping.note_id(root.id) or nil,
+		id = gitlab_mapper.note_id(note.id),
+		parent_id = not is_root and gitlab_mapper.note_id(root.id) or nil,
 		thread_id = "gid://gitlab/Discussion/" .. tostring(discussion.id),
 		author = actor_from(note.author),
-		author_roles = gitlab_mapping.author_roles(note, author_username),
+		author_roles = gitlab_mapper.author_roles(note, author_username),
 		body = tostring(note.body or ""),
 		created_at = tostring(note.created_at or ""),
 		resolved_at = resolved and is_root and json.safe_str(note.resolved_at) or nil,

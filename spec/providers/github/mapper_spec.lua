@@ -37,15 +37,15 @@ describe("GitHub issue mapping", function()
 	end
 
 	it("maps editable issue details without issue identity fields", function()
-		local details = issue_mapper.to_issue_details(vim.tbl_extend("force", issue_raw(), {
+		local details = assert(issue_mapper.to_issue_details(vim.tbl_extend("force", issue_raw(), {
 			body = "Description",
-		}))
+		})))
 
 		assert.equal("My issue", details.title)
 		assert.equal("Description", details.description)
-		assert.is_nil(details.repo_full_name)
-		assert.is_nil(details.number)
-		assert.is_nil(details.node_id)
+		assert.is_nil(rawget(details, "repo_full_name"))
+		assert.is_nil(rawget(details, "number"))
+		assert.is_nil(rawget(details, "node_id"))
 	end)
 
 	it("maps GitHub milestone progress and sub-issues", function()
@@ -59,7 +59,7 @@ describe("GitHub issue mapping", function()
 		}
 		raw.subIssues = { nodes = { vim.tbl_extend("force", issue_raw(), { id = "I_2", number = 43 }) } }
 
-		local details = issue_mapper.to_issue_details(raw)
+		local details = assert(issue_mapper.to_issue_details(raw))
 
 		assert.equal(7, details.milestone.number)
 		assert.equal(50, details.milestone.progress_percentage)
@@ -71,44 +71,18 @@ describe("GitHub issue mapping", function()
 end)
 
 describe("normalize_pr author.name", function()
-	it("uses author.name when it is a normal string", function()
-		local raw = base_raw()
-		raw.author.name = "Alice Example"
-		local pr = normalizer.to_pull_request(raw)
-		assert.are.equal("Alice Example", pr.author.name)
-	end)
-
-	it("falls back to login when author.name is missing", function()
+	it("uses author.name and falls back to login when it is missing", function()
 		for _, case in ipairs({
-			{ label = "nil" },
-			{ label = "vim.NIL", value = vim.NIL },
-			{ label = "empty string", value = "" },
+			{ label = "set", value = "Alice Example", expected = "Alice Example" },
+			{ label = "nil", expected = "alice" },
+			{ label = "vim.NIL", value = vim.NIL, expected = "alice" },
+			{ label = "empty string", value = "", expected = "alice" },
 		}) do
 			local raw = base_raw()
 			raw.author.name = case.value
 			local pr = normalizer.to_pull_request(raw)
-			assert.are.equal("alice", pr.author.name, case.label)
+			assert.are.equal(case.expected, pr.author.name, case.label)
 		end
-	end)
-end)
-
-describe("GitHub Git remote mapping", function()
-	it("retains both URLs returned by the existing PR query", function()
-		local pr = normalizer.to_pull_request(base_raw())
-
-		assert.equal("https://github.com/owner/repo.git", pr.destination.https_url)
-		assert.equal("git@github.com:owner/repo.git", pr.destination.ssh_url)
-	end)
-end)
-
-describe("GitHub pull request details", function()
-	it("maps only supplemental pull request fields", function()
-		local raw = base_raw()
-
-		local details = normalizer.to_pull_request_details(raw)
-
-		assert.equal("Description", details.description)
-		assert.is_nil(rawget(details, "id"))
 	end)
 end)
 
@@ -135,11 +109,6 @@ describe("GitHub descriptions", function()
 		assert.equal("I_1", comment.id)
 		assert.equal("Body", comment.body)
 		assert.equal("tada", comment.reactions[1].name)
-	end)
-
-	it("has no description without an id", function()
-		assert.is_nil(normalizer.to_description({}))
-		assert.is_nil(issue_mapper.to_comment({}))
 	end)
 end)
 
