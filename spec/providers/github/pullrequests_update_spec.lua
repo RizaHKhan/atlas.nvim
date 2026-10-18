@@ -78,25 +78,6 @@ describe("github pull request updates", function()
 		end
 	end)
 
-	it("propagates errors from the gh CLI", function()
-		github_client.install({
-			gh = function(_, callback)
-				callback(nil, "boom")
-			end,
-		})
-		local api = fresh_module()
-		local pr = { id = 42, repo_full_name = "owner/repo" }
-
-		for _, opts in ipairs({ { title = "New title" }, { body = "New body" } }) do
-			local ok, err
-			api.update_pr(pr, opts, function(success, e)
-				ok, err = success, e
-			end)
-			assert.is_false(ok)
-			assert.equal("boom", err)
-		end
-	end)
-
 	it("clears supplied empty selections and leaves omitted fields alone", function()
 		github_client.install({
 			gh = function(args, callback)

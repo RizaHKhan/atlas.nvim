@@ -4,7 +4,6 @@ local notify = require("atlas.core.notify")
 local providers = require("atlas.providers")
 local picker = require("atlas.ui.picker")
 local repository = require("atlas.ui.repository")
-local pages = require("atlas.ui.repository.pages")
 local request_scope = require("atlas.core.requests")
 
 local M = {}
@@ -14,32 +13,46 @@ local completion = {}
 ---@param provider PullsProvider|IssuesProvider
 ---@return string[]
 local function page_names(provider)
+	local ui = provider.capabilities.ui and provider.capabilities.ui.repository
 	return vim.tbl_map(function(page)
 		return page.key
-	end, pages.get(provider))
+	end, ui and ui.pages or {})
 end
 
-local function search_repository()
+---@param page string|nil
+---@return PullsProvider[]
+local function browsable(page)
 	local actions = require("atlas.pulls.actions")
 	local available = {}
 	for _, configured in ipairs(providers.configured("pulls")) do
 		local provider = providers.load(configured.id, "pulls")
+		---@cast provider PullsProvider|nil
 		if
 			provider
 			and provider.capabilities.repository
 			and actions.is_available("browse_repositories", { provider = provider })
+			and (not page or vim.tbl_contains(page_names(provider), page))
 		then
 			table.insert(available, provider)
 		end
 	end
 
+	return available
+end
+
+---@param page string|nil
+local function search_repository(page)
+	local actions = require("atlas.pulls.actions")
+	local available = browsable(page)
 	local function browse(provider)
 		if provider then
-			actions.run("browse_repositories", { provider = provider })
+			actions.run("browse_repositories", { provider = provider, page = page })
 		end
 	end
 
-	if #available == 0 then
+	if #available == 0 and page then
+		notify.error("Repository page is not available: " .. page, { vim_notify = true })
+	elseif #available == 0 then
 		notify.error("No repository browsing providers configured", { vim_notify = true })
 	elseif #available == 1 then
 		browse(available[1])
@@ -63,6 +76,13 @@ function M.complete(arglead, args)
 	local options = {}
 	if #args <= 1 then
 		options = { "." }
+		for _, provider in ipairs(browsable(nil)) do
+			for _, name in ipairs(page_names(provider)) do
+				if not vim.tbl_contains(options, name) then
+					table.insert(options, name)
+				end
+			end
+		end
 	elseif #args == 2 then
 		local target
 		if args[1] == "." then
@@ -100,7 +120,8 @@ end
 ---@param page string|nil
 ---@param err string|nil
 local function open_repository(target, page, err)
-	if not target or target.entity ~= "repo" or not target.repo_full_name then
+	local item_page = target and ({ pr = "pulls", issue = "issues", pipeline = "builds" })[target.entity]
+	if not target or not target.repo_full_name or (target.entity ~= "repo" and not item_page) then
 		notify.error(err or "Expected a repository URL", { vim_notify = true })
 		return
 	end
@@ -114,6 +135,8 @@ local function open_repository(target, page, err)
 		notify.error("Repository browsing is not available for this provider", { vim_notify = true })
 		return
 	end
+
+	page = page or target.page or item_page
 	if page and not vim.tbl_contains(page_names(provider), page) then
 		notify.error("Repository page is not available: " .. page, { vim_notify = true })
 		return
@@ -143,6 +166,8 @@ function M.open(value, page)
 			end
 			open_repository(target, page)
 		end)
+	elseif not value:find("[/:]") then
+		search_repository(value)
 	else
 		local target, err = providers.resolve(value)
 		open_repository(target, page, err)

@@ -4,7 +4,7 @@ local cli = require("atlas.providers.github.client")
 local json = require("atlas.core.json")
 local diff_parser = require("atlas.core.git.diff_parser")
 local mapper = require("atlas.pulls.providers.github.api.mapper")
-local github_mapping = require("atlas.providers.github.mapping")
+local github_mapper = require("atlas.providers.github.mapper")
 local request_scope = require("atlas.core.requests")
 
 local REVIEW_QUERY = [[
@@ -173,7 +173,7 @@ local function review_author(raw)
 	if type(raw) ~= "table" then
 		return nil
 	end
-	local user = github_mapping.identity(raw) or { id = "", login = "", name = "" }
+	local user = github_mapper.identity(raw) or { id = "", login = "", name = "" }
 	local slug = json.safe_str(raw.slug) or ""
 	local organization = json.safe_table(raw.organization)
 	local organization_login = json.safe_str(organization.login) or ""
@@ -541,8 +541,8 @@ local function review_details(pages)
 		for _, node in ipairs(((current.reviews or {}).nodes or {})) do
 			table.insert(review_nodes, node)
 			local state = HISTORY_STATES[tostring(node.state or "")]
-			local body = json.safe_str(node.body) or ""
-			if vim.trim(body) == "" then
+			local body = json.safe_str(node.body)
+			if body and vim.trim(body) == "" then
 				body = nil
 			end
 			if state then

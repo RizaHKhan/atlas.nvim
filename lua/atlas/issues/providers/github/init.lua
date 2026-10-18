@@ -16,7 +16,7 @@
 
 local comments_api = require("atlas.issues.providers.github.api.comments")
 local config = require("atlas.config")
-local github_mapping = require("atlas.providers.github.mapping")
+local github_mapper = require("atlas.providers.github.mapper")
 local git = require("atlas.core.git")
 local issues_api = require("atlas.issues.providers.github.api.issues")
 local links_api = require("atlas.providers.github.links")
@@ -140,7 +140,7 @@ return {
 			edit_comment = comments_api.edit,
 			delete_comment = comments_api.delete,
 			reactions = {
-				options = github_mapping.reactions,
+				options = github_mapper.reactions,
 				add = comments_api.add_reaction,
 				remove = comments_api.remove_reaction,
 			},

@@ -1,7 +1,6 @@
 local M = {}
 
 local json = require("atlas.core.json")
-local users = require("atlas.providers.gitlab.users")
 
 ---@type AtlasReactionOption[]
 M.reactions = {
@@ -14,6 +13,26 @@ M.reactions = {
 	{ name = "rocket" },
 	{ name = "eyes" },
 }
+
+---@param raw any
+---@return AtlasUser|nil
+function M.to_user(raw)
+	raw = json.nilify(raw)
+	if type(raw) ~= "table" then
+		return nil
+	end
+	local username = json.safe_str(raw.username) or ""
+	if username == "" then
+		return nil
+	end
+	local name = json.safe_str(raw.name) or ""
+	local id = json.safe_str(raw.id) or ""
+	return {
+		id = id:match("([^/]+)$") or id,
+		name = name ~= "" and name or username,
+		username = username,
+	}
+end
 
 ---@param awards any GraphQL `awardEmoji.nodes`, one per user
 ---@param viewer string|nil Username of the current user
@@ -30,7 +49,7 @@ function M.award_reactions(awards, viewer)
 				table.insert(reactions, reaction)
 			end
 			reaction.count = reaction.count + 1
-			local user = users.to_user(award.user)
+			local user = M.to_user(award.user)
 			if user then
 				table.insert(reaction.users, user)
 				reaction.reacted = reaction.reacted or user.username == viewer

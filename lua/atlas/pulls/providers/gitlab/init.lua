@@ -34,7 +34,7 @@ local repository_ui = require("atlas.providers.gitlab.ui.repository")
 local gitlab_query = require("atlas.providers.gitlab.query")
 local request_scope = require("atlas.core.requests")
 local users_api = require("atlas.providers.gitlab.users")
-local gitlab_mapping = require("atlas.providers.gitlab.mapping")
+local gitlab_mapper = require("atlas.providers.gitlab.mapper")
 
 ---@return AtlasGitLabPullsViewConfig[]
 local function views()
@@ -137,7 +137,7 @@ return {
 			edit_comment = comments_api.edit_comment,
 			delete_comment = comments_api.delete_comment,
 			reactions = {
-				options = gitlab_mapping.reactions,
+				options = gitlab_mapper.reactions,
 				add = comments_api.add_reaction,
 				remove = comments_api.remove_reaction,
 			},

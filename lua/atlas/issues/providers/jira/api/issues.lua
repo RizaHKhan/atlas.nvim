@@ -4,11 +4,11 @@ local service = require("atlas.providers.jira.client")
 local normalizer = require("atlas.issues.providers.jira.api.mapper")
 local json = require("atlas.core.json")
 local config = require("atlas.config")
-local users_api = require("atlas.providers.jira.users")
+local jira_mapper = require("atlas.providers.jira.mapper")
 local url_encode = require("atlas.core.utils").url_encode
 local request_scope = require("atlas.core.requests")
 
----@param story_points_field string
+---@param story_points_field string|nil
 local function search_fields(story_points_field)
 	return {
 		"summary",
@@ -457,7 +457,7 @@ function M.get_assignable_users(opts, query, callback)
 
 		local users = {}
 		for _, raw in ipairs(result) do
-			local user = users_api.to_user(raw)
+			local user = jira_mapper.to_user(raw)
 			if user then
 				table.insert(users, user)
 			end

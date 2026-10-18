@@ -43,12 +43,13 @@ local function comment_item(comment)
 end
 
 ---@param padding_x integer
----@param max_lines integer|fun(comment: IssueComment): integer|nil
+---@param max_lines integer|(fun(comment: IssueComment): integer|nil)|nil
 ---@param truncated_key string|nil
 ---@return AtlasThreadRenderOpts
 local function render_options(padding_x, max_lines, truncated_key)
 	if type(max_lines) == "function" then
 		local callback = max_lines
+		---@param item AtlasThreadItem
 		max_lines = function(item)
 			local comment = item.line_map and item.line_map.comment
 			return comment and callback(comment) or nil
@@ -148,7 +149,7 @@ end
 ---@class IssuesCommentThreadRenderOptions
 ---@field expanded fun(root: IssueComment): boolean
 ---@field padding_x integer|nil
----@field content_max_lines integer|fun(comment: IssueComment): integer|nil
+---@field content_max_lines integer|(fun(comment: IssueComment): integer|nil)|nil
 ---@field content_truncated_key string|nil
 
 ---@param nodes IssuesCommentThreadNode[]

@@ -91,7 +91,7 @@ end
 ---@param view IssuesViewConfig
 ---@return boolean
 local function relationships_enabled(view)
-	return state.view_layout(view) == "plain" and config.options.issues.with_relationships
+	return state.view_layout(view) == "plain" and config.options.issues.with_relationships == true
 end
 
 ---@param issues Issue[]

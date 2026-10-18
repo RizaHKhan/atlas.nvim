@@ -264,7 +264,7 @@ local function render_meta(state)
 				labels.value = labels.value .. " "
 			end
 			local text = " " .. label.name .. " "
-			local hl = highlights.chip(label.color)
+			local hl = highlights.label(label.color)
 			table.insert(labels.spans, { start_col = #labels.value, end_col = #labels.value + #text, hl_group = hl })
 			labels.value = labels.value .. text
 		end

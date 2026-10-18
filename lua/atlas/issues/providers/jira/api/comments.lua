@@ -18,7 +18,7 @@ end
 
 ---@param issue Issue
 ---@param opts { force_refresh?: boolean }|nil
----@param on_done fun(items: IssueConversationItem[]|nil, err: string|nil)
+---@param on_done fun(conversation: IssueConversation|nil, err: string|nil)
 ---@return { job_id: integer, cancel: fun() }|nil
 function M.fetch_conversation(issue, opts, on_done)
 	opts = opts or {}
@@ -29,24 +29,10 @@ function M.fetch_conversation(issue, opts, on_done)
 	end
 	local cache_key = "jira:panel:comments:" .. issue_key
 
-	---@param comments IssueComment[]
-	local function done(comments)
-		local items = {}
-		for _, comment in ipairs(comments) do
-			table.insert(items, {
-				id = "comment:" .. tostring(comment.id),
-				kind = "comment",
-				created_at = comment.created_at or "",
-				entity = comment,
-			})
-		end
-		on_done(items, nil)
-	end
-
 	if not opts.force_refresh then
 		local cached, ok = service.get_memory_cache(cache_key)
 		if ok then
-			done(cached)
+			on_done({ comments = cached, activities = {} }, nil)
 			return nil
 		end
 	end
@@ -61,7 +47,7 @@ function M.fetch_conversation(issue, opts, on_done)
 
 		local comments = map_comments(result, issue)
 		service.set_memory_cache(cache_key, comments)
-		done(comments)
+		on_done({ comments = comments, activities = {} }, nil)
 	end, {
 		action = "Fetch comments",
 		issue_key = issue_key,

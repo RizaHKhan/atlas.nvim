@@ -4,7 +4,7 @@
 ---@field confidential boolean|nil
 ---@field node_id string|nil
 
-local gitlab_mapping = require("atlas.providers.gitlab.mapping")
+local gitlab_mapper = require("atlas.providers.gitlab.mapper")
 local config = require("atlas.config")
 local detail_ui = require("atlas.issues.providers.gitlab.ui.detail")
 local git = require("atlas.core.git")
@@ -94,7 +94,7 @@ return {
 			edit_comment = notes_api.edit_comment,
 			delete_comment = notes_api.delete_comment,
 			reactions = {
-				options = gitlab_mapping.reactions,
+				options = gitlab_mapper.reactions,
 				add = notes_api.add_reaction,
 				remove = notes_api.remove_reaction,
 			},

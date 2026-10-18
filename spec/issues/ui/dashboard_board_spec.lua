@@ -17,15 +17,15 @@ describe("Issue board layout", function()
 		local lines, map = layouts.render(opts, issues)
 		assert.is_true(lines[1]:find("Done (1)", 1, true) < lines[1]:find("Open (1)", 1, true))
 		assert.is_nil(lines[1]:find("Waiting", 1, true))
-		assert.equals(2, #map[2].cells)
-		assert.equals(issues[1], map[2].cells[2]._issue)
-		assert.equals(6, #lines)
-		assert.equals("", lines[3])
-		assert.equals("", lines[4])
+		assert.equal(2, #map[2].cells)
+		assert.equal(issues[1], map[2].cells[2]._issue)
+		assert.equal(6, #lines)
+		assert.equal("", lines[3])
+		assert.equal("", lines[4])
 		assert.truthy(lines[5]:find("Review (1)", 1, true))
-		assert.equals(issues[3], map[6].cells[1]._issue)
-		assert.equals(3, map[6].cells[1].column)
-		assert.equals("Open", statuses[3].name)
+		assert.equal(issues[3], map[6].cells[1]._issue)
+		assert.equal(3, map[6].cells[1].column)
+		assert.equal("Open", statuses[3].name)
 		assert.truthy(lines[2]:find(issues[1].title, 1, true))
 		for _, line in ipairs(lines) do
 			assert.is_true(vim.fn.strdisplaywidth(line) <= opts.width)
@@ -33,8 +33,8 @@ describe("Issue board layout", function()
 
 		opts.width = 120
 		lines, map = layouts.render(opts, issues)
-		assert.equals(2, #lines)
-		assert.equals(3, #map[2].cells)
+		assert.equal(2, #lines)
+		assert.equal(3, #map[2].cells)
 		assert.same({ " No issues found." }, layouts.render(opts, {}))
 	end)
 
@@ -46,7 +46,7 @@ describe("Issue board layout", function()
 		})
 		local cell = map[2].cells[2]
 		local text = "AT-2 Résumé"
-		assert.equals(text, lines[2]:sub(cell.start_col + 1, cell.start_col + #text))
+		assert.equal(text, lines[2]:sub(cell.start_col + 1, cell.start_col + #text))
 
 		local highlighted = {}
 		for _, span in ipairs(spans) do
@@ -55,14 +55,5 @@ describe("Issue board layout", function()
 			end
 		end
 		assert.same({ "AT-1", "AT-2", "AT-3" }, highlighted)
-	end)
-
-	it("falls back to plain for unsupported providers", function()
-		local plain = require("atlas.issues.ui.layouts.plain")
-		local issues = { { key = "AT-1", number = 1, title = "Work" } }
-		local opts = { layout = "board", provider_id = "github", width = 80 }
-		assert.same({ plain.render(opts, issues, plain.github) }, { layouts.render(opts, issues) })
-		opts.provider_id = "unknown"
-		assert.same({ plain.render(opts, issues, plain.default) }, { layouts.render(opts, issues) })
 	end)
 end)

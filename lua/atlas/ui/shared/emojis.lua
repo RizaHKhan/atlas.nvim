@@ -33,6 +33,9 @@ local GLYPHS = {
 	clap = "󱥋",
 	zap = "󱐋",
 	bulb = "",
+	mega = "",
+	speech_balloon = "",
+	ballot_box = "",
 }
 
 local FALLBACK = "󰼇"
